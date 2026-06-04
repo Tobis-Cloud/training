@@ -740,12 +740,10 @@
 </head>
 <body>
 
-  <!-- Main App Interface -->
   <div class="app-container" id="app-setup-screen">
     <header>
       <h1>Neon Intervals</h1>
       
-      <!-- Global Settings Grid -->
       <div class="global-settings">
         <div class="setting-card" id="setting-cycles" onclick="openCyclesPicker()">
           <span class="setting-label">Zyklen</span>
@@ -758,18 +756,15 @@
       </div>
     </header>
 
-    <!-- Workout Exercises List -->
     <main class="exercise-section">
       <div class="section-title-bar">
         <span class="section-title">Übungen</span>
       </div>
       
       <div class="exercise-list" id="exercise-list">
-        <!-- JS will populate exercise items here dynamically -->
-      </div>
+        </div>
     </main>
 
-    <!-- App Control Panel & Duration Summary -->
     <footer class="controls-container">
       <div class="summary-card">
         <span class="summary-label">Gesamtzeit</span>
@@ -783,7 +778,6 @@
     </footer>
   </div>
 
-  <!-- Custom Wheel Picker Overlay Modal -->
   <div class="modal-overlay" id="picker-modal">
     <div class="modal-content">
       <div class="modal-header">
@@ -791,22 +785,17 @@
         <button class="modal-close-btn" onclick="closePickerModal()">Fertig</button>
       </div>
       
-      <!-- Dynamic Wheel Picker Container -->
       <div class="wheel-picker-container" id="wheel-picker-content">
-        <!-- JS will populate wheel columns here based on target being edited -->
-      </div>
+        </div>
     </div>
   </div>
 
-  <!-- Fullscreen Workout Running Overlay -->
   <div class="timer-overlay" id="timer-overlay">
-    <!-- Header showing Round/Cycle -->
     <div class="timer-header">
       <span class="timer-cycle-count" id="running-cycle-label">Runde 1 / 3</span>
       <h2 class="timer-exercise-name" id="running-item-label">Kniebeugen</h2>
     </div>
 
-    <!-- Central Timer Display -->
     <div class="timer-display-container">
       <div class="timer-seconds" id="running-timer-seconds">00:45</div>
       
@@ -816,7 +805,6 @@
       </div>
     </div>
 
-    <!-- Footer Controls -->
     <div class="timer-footer">
       <div class="next-up-card" id="next-up-card">
         Nächste Übung: <span class="next-up-value" id="running-next-item">Liegestütze</span>
@@ -830,7 +818,6 @@
     </div>
   </div>
 
-  <!-- Script Logic -->
   <script>
     (function() {
       // --- State Management ---
@@ -882,8 +869,28 @@
       let nextUpCard;
       let timerPauseBtn;
 
-      // --- Initialization ---
+      // --- LocalStorage Helpers ---
+      function saveToLocalStorage() {
+        localStorage.setItem('neon_intervals_exercises', JSON.stringify(exercises));
+        localStorage.setItem('neon_intervals_break', JSON.stringify(globalBreak));
+        localStorage.setItem('neon_intervals_cycles', cycles);
+      }
+
+      function loadFromLocalStorage() {
+        const localEx = localStorage.getItem('neon_intervals_exercises');
+        const localBreak = localStorage.getItem('neon_intervals_break');
+        const localCycles = localStorage.getItem('neon_intervals_cycles');
+
+        if (localEx) exercises = JSON.parse(localEx);
+        if (localBreak) globalBreak = JSON.parse(localBreak);
+        if (localCycles) cycles = parseInt(localCycles, 10);
+      }
+
+      // --- Alignment with iOS Setup ---
       function init() {
+        // Load saved state first
+        loadFromLocalStorage();
+
         // Resolve DOM hooks
         exerciseListContainer = document.getElementById('exercise-list');
         totalDurationSummary = document.getElementById('total-duration-summary');
@@ -985,6 +992,7 @@
           minutes: 0,
           seconds: 45
         });
+        saveToLocalStorage();
         renderExerciseList();
         updateSummary();
         
@@ -1002,12 +1010,14 @@
         const index = exercises.findIndex(ex => ex.id === id);
         if (index !== -1) {
           exercises[index].name = newName.trim() || `Übung ${index + 1}`;
+          saveToLocalStorage();
           renderExerciseList();
         }
       }
 
       function deleteExercise(id) {
         exercises = exercises.filter(ex => ex.id !== id);
+        saveToLocalStorage();
         renderExerciseList();
         updateSummary();
       }
@@ -1115,6 +1125,7 @@
         }).filter(Boolean);
         
         exercises = reordered;
+        saveToLocalStorage();
         updateSummary();
       }
 
@@ -1259,6 +1270,7 @@
         selectWheelValue(cyclesCol, cycles);
       }
 
+      // Modifed for persistent state saving
       function openBreakPicker() {
         activePicker.type = 'break';
         activePicker.targetId = null;
@@ -1342,6 +1354,7 @@
           }
         }
         
+        saveToLocalStorage();
         pickerModal.classList.remove('active');
         activePicker.type = null;
         activePicker.targetId = null;
