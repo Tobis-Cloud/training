@@ -2,10 +2,14 @@
 <html lang="de">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
   <title>Neon Intervals</title>
   <link rel="icon" type="image/jpeg" href="Training.jpeg">
   <link rel="apple-touch-icon" href="Training.jpeg">
+  
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  
   <style>
     /* CSS Reset & Variables */
     :root {
@@ -31,14 +35,25 @@
       -webkit-user-select: none;
     }
 
-    body {
+    /* Ganzseitiges Scrollen strikt unterbinden */
+    html, body {
       background-color: var(--bg-color);
       color: var(--text-color);
       font-family: var(--font-family);
-      overflow-x: hidden;
+      overflow: hidden;
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100vw;
       height: 100vh;
+      overscroll-behavior: none;
+    }
+
+    body {
       display: flex;
       flex-direction: column;
+      padding-top: env(safe-area-inset-top);
+      padding-bottom: env(safe-area-inset-bottom);
     }
 
     /* Scrollbar styling */
@@ -62,6 +77,7 @@
       margin: 0 auto;
       padding: 20px;
       width: 100%;
+      overflow: hidden; /* Verhindert Ausbrechen */
     }
 
     header {
@@ -148,6 +164,7 @@
       color: var(--text-muted);
     }
 
+    /* Einzig scrollbarer Bereich auf der Hauptseite */
     .exercise-list {
       flex: 1;
       overflow-y: auto;
@@ -389,6 +406,7 @@
       width: 100%;
       max-width: 600px;
       padding: 24px;
+      padding-bottom: calc(24px + env(safe-area-inset-bottom));
       transform: translateY(100%);
       transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1);
       display: flex;
@@ -487,15 +505,6 @@
       background: rgba(255, 255, 255, 0.02);
     }
 
-    .wheel-column-label {
-      position: absolute;
-      right: 20%;
-      pointer-events: none;
-      font-size: 14px;
-      font-weight: bold;
-      color: var(--text-muted);
-    }
-
     .wheel-fade-overlay {
       position: absolute;
       top: 0;
@@ -533,9 +542,12 @@
       flex-direction: column;
       justify-content: space-between;
       padding: 40px 24px;
+      padding-top: calc(40px + env(safe-area-inset-top));
+      padding-bottom: calc(40px + env(safe-area-inset-bottom));
       opacity: 0;
       pointer-events: none;
       transition: opacity 0.5s ease;
+      overscroll-behavior: none;
     }
 
     .timer-overlay.active {
@@ -742,7 +754,7 @@
 </head>
 <body>
 
-  <audio id="silent-audio-bypass" loop playsinline src="data:audio/wav;base64,UklGRigAAABXQVZFZm10IBAAAAABAAEARKwAAIhYAQACABAAZGF0YQQAAAAAAA==:"></audio>
+  <audio id="native-beep-audio" preload="auto" playsinline></audio>
 
   <div class="app-container" id="app-setup-screen">
     <header>
@@ -837,19 +849,17 @@
       // Timer State
       let timer = {
         intervalId: null,
-        state: 'setup', // 'setup', 'running', 'paused'
+        state: 'setup', 
         playlist: [],
         currentStepIndex: 0,
         stepSecondsRemaining: 0,
-        overallSecondsRemaining: 0,
-        audioContext: null
+        overallSecondsRemaining: 0
       };
 
-      // Current Picker Configuration
-      let activePicker = {
-        type: null, // 'cycles', 'break', 'exercise'
-        targetId: null // exercise ID if type is 'exercise'
-      };
+      // Base64 Audio-Muster (Kurzer, klarer Beep-Ton für iOS-Bypass)
+      const BEEP_SOUND_SRC = "data:audio/wav;base64,UklGRl9vT19XQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YU92T19fX19fX19fX35+fn5+fn5+fn9/f39/f39/f3+AgICAgICAgIBehaviorfX19fX19fX19fX19fX19fX19fX19fX19fX19fX19fX19fX19fX19fX19fX19fX19fX19fX19fX19fX19fX19fX19fX19fX19fX19fX19fX19fX19fX19fX19fX19fX19fX19fX19fX19fX19fX19fX19fX19fX19fX19fX2dnZ2dnZ2dnZ2dnZ39/f39/f39/f39/f4CAgICAgICAgICAf39/f39/f39/f39/f2dnZ2dnZ2dnZ2dnZw==";
+
+      let activePicker = { type: null, targetId: null };
 
       // --- DOM Elements ---
       let exerciseListContainer;
@@ -857,13 +867,9 @@
       let startTimerBtn;
       let cyclesValueDisplay;
       let breakValueDisplay;
-
-      // Picker Elements
       let pickerModal;
       let pickerModalTitle;
       let wheelPickerContent;
-
-      // Timer Screen Elements
       let timerOverlay;
       let runningCycleLabel;
       let runningItemLabel;
@@ -872,7 +878,7 @@
       let runningNextItem;
       let nextUpCard;
       let timerPauseBtn;
-      let silentAudioBypass;
+      let nativeAudioElement;
 
       // --- LocalStorage Helpers ---
       function saveToLocalStorage() {
@@ -891,22 +897,17 @@
         if (localCycles) cycles = parseInt(localCycles, 10);
       }
 
-      // --- Alignment with iOS Setup ---
       function init() {
-        // Load saved state first
         loadFromLocalStorage();
 
-        // Resolve DOM hooks
         exerciseListContainer = document.getElementById('exercise-list');
         totalDurationSummary = document.getElementById('total-duration-summary');
         startTimerBtn = document.getElementById('start-timer-btn');
         cyclesValueDisplay = document.getElementById('cycles-value');
         breakValueDisplay = document.getElementById('break-value');
-
         pickerModal = document.getElementById('picker-modal');
         pickerModalTitle = document.getElementById('picker-modal-title');
         wheelPickerContent = document.getElementById('wheel-picker-content');
-
         timerOverlay = document.getElementById('timer-overlay');
         runningCycleLabel = document.getElementById('running-cycle-label');
         runningItemLabel = document.getElementById('running-item-label');
@@ -915,21 +916,31 @@
         runningNextItem = document.getElementById('running-next-item');
         nextUpCard = document.getElementById('next-up-card');
         timerPauseBtn = document.getElementById('timer-pause-btn');
-        silentAudioBypass = document.getElementById('silent-audio-bypass');
+        nativeAudioElement = document.getElementById('native-beep-audio');
+
+        // Audio-Quelle zuweisen
+        if (nativeAudioElement) {
+          nativeAudioElement.src = BEEP_SOUND_SRC;
+        }
+
+        // Verhindert das Scrollen der gesamten Seite bei Touch-Bewegungen außerhalb der Liste
+        document.addEventListener('touchmove', function(e) {
+          if (!e.target.closest('#exercise-list') && !e.target.closest('.wheel-column')) {
+            e.preventDefault();
+          }
+        }, { passive: false });
 
         renderExerciseList();
         updateSummary();
         initDragAndDrop();
       }
 
-      // Check DOM readiness to run initializer immediately
       if (document.readyState === 'loading') {
         document.addEventListener('DOMContentLoaded', init);
       } else {
         init();
       }
 
-      // --- Formatting Helpers ---
       function formatTime(mins, secs) {
         return `${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
       }
@@ -940,7 +951,6 @@
         return formatTime(mins, secs);
       }
 
-      // --- Exercise List Management ---
       function renderExerciseList() {
         if (!exerciseListContainer) return;
         exerciseListContainer.innerHTML = '';
@@ -1002,7 +1012,6 @@
         renderExerciseList();
         updateSummary();
         
-        // Auto focus the input of the newly added exercise
         setTimeout(() => {
           const input = exerciseListContainer.querySelector(`[data-id="${id}"] .exercise-name-input`);
           if (input) {
@@ -1028,12 +1037,11 @@
         updateSummary();
       }
 
-      // --- Drag & Drop Implementation (Mouse & Touch) ---
+      // --- Drag & Drop Implementation ---
       let draggedElement = null;
 
       function initDragAndDrop() {
         try {
-          // Desktop Mouse Events
           exerciseListContainer.addEventListener('dragstart', (e) => {
             const item = e.target.closest('.exercise-item');
             if (!item) return;
@@ -1062,12 +1070,12 @@
             saveListOrderFromDOM();
           });
 
-          // Mobile Touch Events (Custom touch Drag & Drop emulation via Handle)
+          // Mobile Touch D&D (nur via Handle, damit normales Scrollen ungestört klappt)
           let touchStartElement = null;
           
           exerciseListContainer.addEventListener('touchstart', (e) => {
             const handle = e.target.closest('.drag-handle');
-            if (!handle) return; // Wenn nicht auf dem Handle gegriffen wird, normales Scrollen zulassen
+            if (!handle) return; 
             
             const item = handle.closest('.exercise-item');
             if (!item) return;
@@ -1105,7 +1113,7 @@
             saveListOrderFromDOM();
           });
         } catch (err) {
-          console.warn('Drag & Drop initialization failed:', err);
+          console.warn('Drag & Drop Fehler:', err);
         }
       }
 
@@ -1135,7 +1143,6 @@
         updateSummary();
       }
 
-      // --- Total Duration Calculation ---
       function calculateTotalDuration() {
         if (exercises.length === 0) return 0;
         
@@ -1158,7 +1165,7 @@
         if (breakValueDisplay) breakValueDisplay.innerText = formatTime(globalBreak.minutes, globalBreak.seconds);
       }
 
-      // --- Custom Apple Watch-Style Wheel Picker Engine ---
+      // --- Picker Engine ---
       function createWheelColumn(id, label, min, max, initialValue, step = 1) {
         const column = document.createElement('div');
         column.className = 'wheel-column';
@@ -1253,11 +1260,9 @@
         return 0;
       }
 
-      // Open Picker Modals
       function openCyclesPicker() {
         activePicker.type = 'cycles';
         activePicker.targetId = null;
-        
         pickerModalTitle.innerText = 'Runden (Zyklen) wählen';
         wheelPickerContent.innerHTML = '';
         
@@ -1279,7 +1284,6 @@
       function openBreakPicker() {
         activePicker.type = 'break';
         activePicker.targetId = null;
-        
         pickerModalTitle.innerText = 'Pausenzeit wählen';
         wheelPickerContent.innerHTML = '';
         
@@ -1312,7 +1316,6 @@
         
         activePicker.type = 'exercise';
         activePicker.targetId = id;
-        
         pickerModalTitle.innerText = `${ex.name} - Zeit`;
         wheelPickerContent.innerHTML = '';
         
@@ -1346,7 +1349,7 @@
           globalBreak.minutes = getSelectedWheelValue('min-column');
           globalBreak.seconds = getSelectedWheelValue('sec-column');
           if (globalBreak.minutes === 0 && globalBreak.seconds === 0) {
-            globalBreak.seconds = 5; // safety fallback
+            globalBreak.seconds = 5;
           }
         } else if (activePicker.type === 'exercise' && activePicker.targetId) {
           const ex = exercises.find(item => item.id === activePicker.targetId);
@@ -1354,7 +1357,7 @@
             ex.minutes = getSelectedWheelValue('min-column');
             ex.seconds = getSelectedWheelValue('sec-column');
             if (ex.minutes === 0 && ex.seconds === 0) {
-              ex.seconds = 10; // safety fallback
+              ex.seconds = 10;
             }
           }
         }
@@ -1363,56 +1366,44 @@
         pickerModal.classList.remove('active');
         activePicker.type = null;
         activePicker.targetId = null;
-        
         renderExerciseList();
         updateSummary();
       }
 
-      // --- Web Audio API Synth Sound mit Stummmodus-Bypass ---
-      function playBeep(frequency, duration) {
-        try {
-          // Trigger den stummen HTML5-Audio-Bypass für mobile Browser
-          if (silentAudioBypass) {
-            silentAudioBypass.play().catch(() => {});
-          }
-
-          if (!timer.audioContext) {
-            timer.audioContext = new (window.AudioContext || window.webkitAudioContext)();
-          }
-          
-          const ctx = timer.audioContext;
-          if (ctx.state === 'suspended') {
-            ctx.resume();
-          }
-          
-          const osc = ctx.createOscillator();
-          const gainNode = ctx.createGain();
-          
-          osc.connect(gainNode);
-          gainNode.connect(ctx.destination);
-          
-          osc.type = 'sine';
-          osc.frequency.setValueAtTime(frequency, ctx.currentTime);
-          
-          gainNode.gain.setValueAtTime(0.8, ctx.currentTime); // Erhöhte Lautstärke
-          gainNode.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + duration);
-          
-          osc.start(ctx.currentTime);
-          osc.stop(ctx.currentTime + duration);
-        } catch (err) {
-          console.warn('Sound synthesis beep failed:', err);
+      // --- Absolut krisensichere Audio-Wiedergabe für iOS Home-Screen ---
+      function playBeep() {
+        if (!nativeAudioElement) return;
+        
+        // Stoppt laufenden Sound und startet ihn sofort neu
+        nativeAudioElement.pause();
+        nativeAudioElement.currentTime = 0;
+        
+        // Setzt Lautstärke auf Maximum
+        nativeAudioElement.volume = 1.0;
+        
+        const playPromise = nativeAudioElement.play();
+        if (playPromise !== undefined) {
+          playPromise.catch(error => {
+            console.warn("Audio-Wiedergabe blockiert:", error);
+          });
         }
+      }
+
+      // Schaltet den Audio-Kanal durch die Benutzerinteraktion (Klick auf Start) frei
+      function unlockAudio() {
+        if (!nativeAudioElement) return;
+        nativeAudioElement.play().then(() => {
+          nativeAudioElement.pause();
+          nativeAudioElement.currentTime = 0;
+        }).catch(() => {});
       }
 
       // --- Timer Engine ---
       function startWorkout() {
         if (exercises.length === 0) return;
         
-        try {
-          if (!timer.audioContext) {
-            timer.audioContext = new (window.AudioContext || window.webkitAudioContext)();
-          }
-        } catch(e) {}
+        // WICHTIG: Schaltet Audio für den iOS-Stummmodus frei
+        unlockAudio();
         
         timer.playlist = [];
         const breakSeconds = (globalBreak.minutes * 60) + globalBreak.seconds;
@@ -1467,16 +1458,16 @@
         
         const currentStep = timer.playlist[timer.currentStepIndex];
         
-        // 3 short warning beeps and short flashes at 3, 2, 1 seconds
+        // 3 kurze Pieptöne bei 3, 2, 1 Sekunden Restzeit
         if (timer.stepSecondsRemaining >= 1 && timer.stepSecondsRemaining <= 3) {
-          playBeep(800, 0.1);
+          playBeep();
           triggerScreenFlash('short', currentStep.type);
         }
         
-        // 4th longer beep + long flash at transition (0 seconds)
+        // Wechsel des Intervalls bei 0 Sekunden
         if (timer.stepSecondsRemaining <= 0) {
           triggerScreenFlash('long', currentStep.type);
-          playBeep(800, 1.2);
+          playBeep();
           
           timer.currentStepIndex++;
           
@@ -1484,9 +1475,10 @@
             clearInterval(timer.intervalId);
             timer.state = 'setup';
             
-            setTimeout(() => playBeep(600, 0.15), 100);
-            setTimeout(() => playBeep(800, 0.15), 250);
-            setTimeout(() => playBeep(1200, 0.80), 400);
+            // Finale Erfolgs-Pieptöne
+            playBeep();
+            setTimeout(playBeep, 200);
+            setTimeout(playBeep, 400);
             
             setTimeout(() => {
               if (timerOverlay) timerOverlay.classList.remove('active');
@@ -1584,7 +1576,7 @@
       function skipCurrentStep() {
         if (timer.state === 'setup') return;
         
-        playBeep(1200, 0.2);
+        playBeep();
         
         const currentStep = timer.playlist[timer.currentStepIndex];
         triggerScreenFlash('long', currentStep.type);
@@ -1595,13 +1587,13 @@
           clearInterval(timer.intervalId);
           timer.state = 'setup';
           
-          setTimeout(() => playBeep(600, 0.15), 100);
-          setTimeout(() => playBeep(800, 0.15), 250);
-          setTimeout(() => playBeep(1200, 0.40), 400);
+          playBeep();
           
           setTimeout(() => {
             if (timerOverlay) timerOverlay.classList.remove('active');
-          }, 1000);
+            const setupScreen = document.getElementById('app-setup-screen');
+            if (setupScreen) setupScreen.style.display = 'flex';
+          }, 500);
           return;
         }
         
