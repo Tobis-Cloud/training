@@ -155,6 +155,8 @@
       flex-direction: column;
       gap: 10px;
       padding-right: 2px;
+      overscroll-behavior-y: contain;
+      -webkit-overflow-scrolling: touch;
     }
 
     .empty-state {
@@ -182,7 +184,6 @@
       cursor: grab;
       transition: transform 0.2s, box-shadow 0.2s, border-color 0.2s;
       position: relative;
-      touch-action: none; /* Prevents scrolling while dragging on touch screens */
     }
 
     .exercise-item.dragging {
@@ -197,7 +198,8 @@
       gap: 3px;
       cursor: grab;
       color: var(--text-muted);
-      padding: 4px;
+      padding: 10px 6px;
+      touch-action: none;
     }
 
     .drag-handle span {
@@ -740,6 +742,8 @@
 </head>
 <body>
 
+  <audio id="silent-audio-bypass" loop playsinline src="data:audio/wav;base64,UklGRigAAABXQVZFZm10IBAAAAABAAEARKwAAIhYAQACABAAZGF0YQQAAAAAAA==:"></audio>
+
   <div class="app-container" id="app-setup-screen">
     <header>
       <h1>Neon Intervals</h1>
@@ -762,7 +766,7 @@
       </div>
       
       <div class="exercise-list" id="exercise-list">
-        </div>
+      </div>
     </main>
 
     <footer class="controls-container">
@@ -786,7 +790,7 @@
       </div>
       
       <div class="wheel-picker-container" id="wheel-picker-content">
-        </div>
+      </div>
     </div>
   </div>
 
@@ -868,6 +872,7 @@
       let runningNextItem;
       let nextUpCard;
       let timerPauseBtn;
+      let silentAudioBypass;
 
       // --- LocalStorage Helpers ---
       function saveToLocalStorage() {
@@ -910,6 +915,7 @@
         runningNextItem = document.getElementById('running-next-item');
         nextUpCard = document.getElementById('next-up-card');
         timerPauseBtn = document.getElementById('timer-pause-btn');
+        silentAudioBypass = document.getElementById('silent-audio-bypass');
 
         renderExerciseList();
         updateSummary();
@@ -1056,12 +1062,12 @@
             saveListOrderFromDOM();
           });
 
-          // Mobile Touch Events (Custom touch Drag & Drop emulation)
+          // Mobile Touch Events (Custom touch Drag & Drop emulation via Handle)
           let touchStartElement = null;
           
           exerciseListContainer.addEventListener('touchstart', (e) => {
             const handle = e.target.closest('.drag-handle');
-            if (!handle) return;
+            if (!handle) return; // Wenn nicht auf dem Handle gegriffen wird, normales Scrollen zulassen
             
             const item = handle.closest('.exercise-item');
             if (!item) return;
@@ -1099,7 +1105,7 @@
             saveListOrderFromDOM();
           });
         } catch (err) {
-          console.warn('Drag & Drop initialization failed (ignored for simplicity):', err);
+          console.warn('Drag & Drop initialization failed:', err);
         }
       }
 
@@ -1270,7 +1276,6 @@
         selectWheelValue(cyclesCol, cycles);
       }
 
-      // Modifed for persistent state saving
       function openBreakPicker() {
         activePicker.type = 'break';
         activePicker.targetId = null;
@@ -1363,9 +1368,14 @@
         updateSummary();
       }
 
-      // --- Web Audio API Synth Sound ---
+      // --- Web Audio API Synth Sound mit Stummmodus-Bypass ---
       function playBeep(frequency, duration) {
         try {
+          // Trigger den stummen HTML5-Audio-Bypass für mobile Browser
+          if (silentAudioBypass) {
+            silentAudioBypass.play().catch(() => {});
+          }
+
           if (!timer.audioContext) {
             timer.audioContext = new (window.AudioContext || window.webkitAudioContext)();
           }
@@ -1384,7 +1394,7 @@
           osc.type = 'sine';
           osc.frequency.setValueAtTime(frequency, ctx.currentTime);
           
-          gainNode.gain.setValueAtTime(0.3, ctx.currentTime);
+          gainNode.gain.setValueAtTime(0.8, ctx.currentTime); // Erhöhte Lautstärke
           gainNode.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + duration);
           
           osc.start(ctx.currentTime);
@@ -1484,7 +1494,6 @@
               if (setupScreen) setupScreen.style.display = 'flex';
             }, 1000);
             
-            // Failsafe final display reset
             if (runningTimerSeconds) runningTimerSeconds.innerText = "00:00";
             if (runningOverallTime) runningOverallTime.innerText = "00:00";
             return;
