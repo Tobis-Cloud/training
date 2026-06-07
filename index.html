@@ -754,8 +754,6 @@
 </head>
 <body>
 
-  <audio id="native-beep-audio" preload="auto" playsinline></audio>
-
   <div class="app-container" id="app-setup-screen">
     <header>
       <h1>Neon Intervals</h1>
@@ -856,8 +854,8 @@
         overallSecondsRemaining: 0
       };
 
-      // Base64 Audio-Muster (Kurzer, klarer Beep-Ton für iOS-Bypass)
-      const BEEP_SOUND_SRC = "data:audio/wav;base64,UklGRl9vT19XQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YU92T19fX19fX19fX35+fn5+fn5+fn9/f39/f39/f3+AgICAgICAgIBehaviorfX19fX19fX19fX19fX19fX19fX19fX19fX19fX19fX19fX19fX19fX19fX19fX19fX19fX19fX19fX19fX19fX19fX19fX19fX19fX19fX19fX19fX19fX19fX19fX19fX19fX19fX19fX19fX19fX19fX19fX19fX19fX2dnZ2dnZ2dnZ2dnZ39/f39/f39/f39/f4CAgICAgICAgICAf39/f39/f39/f39/f2dnZ2dnZ2dnZ2dnZw==";
+      // Web Audio API Kontext für iOS-Stummodus Bypass
+      let audioCtx = null;
 
       let activePicker = { type: null, targetId: null };
 
@@ -878,7 +876,6 @@
       let runningNextItem;
       let nextUpCard;
       let timerPauseBtn;
-      let nativeAudioElement;
 
       // --- LocalStorage Helpers ---
       function saveToLocalStorage() {
@@ -916,12 +913,6 @@
         runningNextItem = document.getElementById('running-next-item');
         nextUpCard = document.getElementById('next-up-card');
         timerPauseBtn = document.getElementById('timer-pause-btn');
-        nativeAudioElement = document.getElementById('native-beep-audio');
-
-        // Audio-Quelle zuweisen
-        if (nativeAudioElement) {
-          nativeAudioElement.src = BEEP_SOUND_SRC;
-        }
 
         // Verhindert das Scrollen der gesamten Seite bei Touch-Bewegungen außerhalb der Liste
         document.addEventListener('touchmove', function(e) {
@@ -1370,40 +1361,48 @@
         updateSummary();
       }
 
-      // --- Absolut krisensichere Audio-Wiedergabe für iOS Home-Screen ---
-      function playBeep() {
-        if (!nativeAudioElement) return;
-        
-        // Stoppt laufenden Sound und startet ihn sofort neu
-        nativeAudioElement.pause();
-        nativeAudioElement.currentTime = 0;
-        
-        // Setzt Lautstärke auf Maximum
-        nativeAudioElement.volume = 1.0;
-        
-        const playPromise = nativeAudioElement.play();
-        if (playPromise !== undefined) {
-          playPromise.catch(error => {
-            console.warn("Audio-Wiedergabe blockiert:", error);
-          });
+      // --- Web Audio API Engine für iOS Silent-Mode Bypass ---
+      function initAudioEngine() {
+        if (!audioCtx) {
+          audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        }
+        if (audioCtx.state === 'suspended') {
+          audioCtx.resume();
         }
       }
 
-      // Schaltet den Audio-Kanal durch die Benutzerinteraktion (Klick auf Start) frei
-      function unlockAudio() {
-        if (!nativeAudioElement) return;
-        nativeAudioElement.play().then(() => {
-          nativeAudioElement.pause();
-          nativeAudioElement.currentTime = 0;
-        }).catch(() => {});
+      function playBeep(duration = 0.15, frequency = 880) {
+        try {
+          initAudioEngine();
+          
+          const osc = audioCtx.createOscillator();
+          const gainNode = audioCtx.createGain();
+          
+          osc.type = 'sine';
+          osc.frequency.value = frequency;
+          
+          // Schnelles Ein- und Ausblenden gegen Knacksgeräusche
+          gainNode.gain.setValueAtTime(0, audioCtx.currentTime);
+          gainNode.gain.linearRampToValueAtTime(0.8, audioCtx.currentTime + 0.01);
+          gainNode.gain.exponentialRampToValueAtTime(0.0001, audioCtx.currentTime + duration);
+          
+          osc.connect(gainNode);
+          gainNode.connect(audioCtx.destination);
+          
+          osc.start(audioCtx.currentTime);
+          osc.stop(audioCtx.currentTime + duration);
+        } catch (e) {
+          console.warn("Audio Context Fehler:", e);
+        }
       }
 
       // --- Timer Engine ---
       function startWorkout() {
         if (exercises.length === 0) return;
         
-        // WICHTIG: Schaltet Audio für den iOS-Stummmodus frei
-        unlockAudio();
+        // Initialisiert und entsperrt das Web Audio System über den Klick-Trigger
+        initAudioEngine();
+        playBeep(0.01, 440); // Unhörbarer initialer Trigger zum Freischalten des Kanals
         
         timer.playlist = [];
         const breakSeconds = (globalBreak.minutes * 60) + globalBreak.seconds;
@@ -1460,14 +1459,14 @@
         
         // 3 kurze Pieptöne bei 3, 2, 1 Sekunden Restzeit
         if (timer.stepSecondsRemaining >= 1 && timer.stepSecondsRemaining <= 3) {
-          playBeep();
+          playBeep(0.12, 800);
           triggerScreenFlash('short', currentStep.type);
         }
         
         // Wechsel des Intervalls bei 0 Sekunden
         if (timer.stepSecondsRemaining <= 0) {
           triggerScreenFlash('long', currentStep.type);
-          playBeep();
+          playBeep(0.4, 1000);
           
           timer.currentStepIndex++;
           
@@ -1476,9 +1475,8 @@
             timer.state = 'setup';
             
             // Finale Erfolgs-Pieptöne
-            playBeep();
-            setTimeout(playBeep, 200);
-            setTimeout(playBeep, 400);
+            setTimeout(() => playBeep(0.15, 1200), 200);
+            setTimeout(() => playBeep(0.15, 1200), 400);
             
             setTimeout(() => {
               if (timerOverlay) timerOverlay.classList.remove('active');
@@ -1576,7 +1574,7 @@
       function skipCurrentStep() {
         if (timer.state === 'setup') return;
         
-        playBeep();
+        playBeep(0.2, 900);
         
         const currentStep = timer.playlist[timer.currentStepIndex];
         triggerScreenFlash('long', currentStep.type);
@@ -1586,8 +1584,6 @@
         if (timer.currentStepIndex >= timer.playlist.length) {
           clearInterval(timer.intervalId);
           timer.state = 'setup';
-          
-          playBeep();
           
           setTimeout(() => {
             if (timerOverlay) timerOverlay.classList.remove('active');
