@@ -313,7 +313,7 @@
       cursor: grab;
       transition: transform 0.2s, border-color 0.2s;
       position: relative;
-      touch-action: none;
+      touch-action: pan-y;
     }
 
     .exercise-item.dragging {
@@ -329,6 +329,7 @@
       cursor: grab;
       color: var(--text-muted);
       padding: 4px;
+      touch-action: none;
     }
     .drag-handle span {
       width: 16px; height: 2px;
