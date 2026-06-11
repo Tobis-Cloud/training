@@ -2,38 +2,38 @@
 <html lang="de">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-  <meta name="description" content="Neon Intervals - Ein moderner, minimalistischer Intervall-Timer mit edlem Soft-Neon-Glow.">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <title>Neon Intervals</title>
-  
   <link rel="icon" type="image/jpeg" href="Training.jpeg">
   <link rel="apple-touch-icon" href="Training.jpeg">
-  
-  <meta name="apple-mobile-web-app-capable" content="yes">
-  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-  <meta name="apple-mobile-web-app-title" content="Intervals">
-  
   <style>
-    /* SOFT MODERN NEON DESIGN TOKENS */
+    /* CSS Reset & Variablen */
     :root {
-      --bg-black: #050505;
-      
-      /* Neon Light Tones */
-      --neon-green: #00ff66;
-      --neon-purple: #b666ff;
-      --neon-red: #ff3b30;
-      
-      /* Ambient Glows */
-      --glow-green: 0 0 15px rgba(0, 255, 102, 0.35), 0 0 35px rgba(0, 255, 102, 0.15);
-      --glow-purple: 0 0 15px rgba(182, 102, 255, 0.35), 0 0 35px rgba(182, 102, 255, 0.15);
-      --glow-red: 0 0 15px rgba(255, 59, 48, 0.35), 0 0 35px rgba(255, 59, 48, 0.15);
-      
-      --glow-text-green: 0 0 8px rgba(0, 255, 102, 0.5), 0 0 25px rgba(0, 255, 102, 0.2);
-      --glow-text-purple: 0 0 8px rgba(182, 102, 255, 0.5), 0 0 25px rgba(182, 102, 255, 0.2);
-      --glow-text-red: 0 0 8px rgba(255, 59, 48, 0.5), 0 0 25px rgba(255, 59, 48, 0.2);
+      --bg-color: #000000;
+      --text-color: #ffffff;
+      --text-muted: #888888;
+      --neon-gray: #1c1c1e;
+      --border-color: #2c2c2e;
+      --font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      --transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
 
-      --font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-      --transition-fast: 0.3s ease;
+      /* Intervall-Modus (Standard): Grün */
+      --accent:        #00ff66;
+      --accent-glow:   0 0 10px rgba(0,255,102,0.6), 0 0 25px rgba(0,255,102,0.3);
+      --accent-dim:    rgba(0,255,102,0.08);
+      --accent-border: #00ff66;
+
+      /* Rot-Farben (immer für Pausen / Training) */
+      --neon-red:      #ff3b30;
+      --neon-red-glow: 0 0 10px rgba(255,59,48,0.6), 0 0 25px rgba(255,59,48,0.3);
+    }
+
+    /* Training-Modus: alles in Rot */
+    body.mode-training {
+      --accent:        #ff3b30;
+      --accent-glow:   0 0 10px rgba(255,59,48,0.6), 0 0 25px rgba(255,59,48,0.3);
+      --accent-dim:    rgba(255,59,48,0.08);
+      --accent-border: #ff3b30;
     }
 
     * {
@@ -42,133 +42,217 @@
       padding: 0;
       user-select: none;
       -webkit-user-select: none;
-      -webkit-tap-highlight-color: transparent;
-    }
-
-    html, body {
-      background-color: var(--bg-black);
-      color: #ffffff;
-      font-family: var(--font-family);
-      overflow: hidden;
-      position: fixed;
-      top: 0;
-      left: 0;
-      width: 100vw;
-      height: 100vh;
-      overscroll-behavior: none;
-      -webkit-font-smoothing: antialiased;
     }
 
     body {
+      background-color: var(--bg-color);
+      color: var(--text-color);
+      font-family: var(--font-family);
+      overflow-x: hidden;
+      height: 100vh;
       display: flex;
       flex-direction: column;
-      padding-top: env(safe-area-inset-top);
-      padding-bottom: env(safe-area-inset-bottom);
-      align-items: center;
-      justify-content: flex-start;
     }
 
-    /* BACKGROUND AMBIENT GLOW */
-    .ambient-glow {
-      position: fixed;
-      top: 0;
-      left: 0;
-      width: 100%;
-      height: 100%;
-      background: radial-gradient(circle at center, rgba(182, 102, 255, 0.06) 0%, rgba(0, 255, 102, 0.02) 50%, rgba(0,0,0,0) 80%);
+    /* Scrollbar */
+    ::-webkit-scrollbar { width: 4px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: var(--border-color); border-radius: 2px; }
+
+    /* ===================== SLIDEOVER ===================== */
+    .slideover-backdrop {
+      position: fixed; inset: 0;
+      background: rgba(0,0,0,0.6);
+      z-index: 4000;
+      opacity: 0;
       pointer-events: none;
-      z-index: -1;
+      transition: opacity 0.3s ease;
+    }
+    .slideover-backdrop.active {
+      opacity: 1;
+      pointer-events: auto;
     }
 
-    /* GLASS CONTAINER */
+    .slideover {
+      position: fixed;
+      top: 0; left: 0; bottom: 0;
+      width: 260px;
+      background: #111;
+      border-right: 1px solid var(--border-color);
+      z-index: 4100;
+      display: flex;
+      flex-direction: column;
+      padding: 60px 0 40px;
+      transform: translateX(-100%);
+      transition: transform 0.35s cubic-bezier(0.16,1,0.3,1);
+    }
+    .slideover.active {
+      transform: translateX(0);
+    }
+
+    .slideover-title {
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 2px;
+      color: var(--text-muted);
+      padding: 0 24px 16px;
+    }
+
+    .slideover-btn {
+      background: transparent;
+      border: none;
+      color: var(--text-color);
+      font-family: var(--font-family);
+      font-size: 18px;
+      font-weight: 500;
+      text-align: left;
+      padding: 16px 24px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      letter-spacing: 1px;
+      transition: var(--transition);
+      border-left: 3px solid transparent;
+    }
+    .slideover-btn:hover {
+      background: var(--neon-gray);
+    }
+    .slideover-btn.active-mode {
+      border-left-color: var(--accent);
+      color: var(--accent);
+      text-shadow: 0 0 8px var(--accent);
+    }
+    .slideover-btn .mode-dot {
+      width: 10px; height: 10px;
+      border-radius: 50%;
+      flex-shrink: 0;
+    }
+    .dot-interval { background: #00ff66; box-shadow: 0 0 6px #00ff66; }
+    .dot-training { background: #ff3b30; box-shadow: 0 0 6px #ff3b30; }
+
+    /* Hamburger-Button */
+    .hamburger-btn {
+      position: absolute;
+      top: 18px; left: 20px;
+      background: transparent;
+      border: none;
+      color: var(--text-muted);
+      font-size: 22px;
+      cursor: pointer;
+      z-index: 100;
+      padding: 4px 8px;
+      border-radius: 6px;
+      transition: var(--transition);
+    }
+    .hamburger-btn:hover { color: var(--text-color); }
+
+    /* ===================== LAYOUT ===================== */
     .app-container {
       display: flex;
       flex-direction: column;
       height: 100%;
-      max-width: 500px;
+      max-width: 600px;
+      margin: 0 auto;
+      padding: 20px;
       width: 100%;
-      padding: 1.5rem;
-      overflow: hidden;
+      position: relative;
     }
 
     header {
-      margin-bottom: 1.5rem;
+      margin-bottom: 20px;
       text-align: center;
+      position: relative;
+      padding-top: 10px;
     }
 
     h1 {
-      font-size: 2rem;
-      font-weight: 300;
-      color: #ffffff;
-      text-shadow: var(--glow-text-purple);
-      letter-spacing: 3px;
+      font-size: 26px;
+      font-weight: 200;
+      letter-spacing: 4px;
       text-transform: uppercase;
-      margin-bottom: 1.2rem;
+      color: var(--text-color);
+      margin-bottom: 18px;
     }
 
-    /* GLOBAL SETTINGS */
+    .mode-badge {
+      display: inline-block;
+      font-size: 10px;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+      color: var(--accent);
+      border: 1px solid var(--accent);
+      border-radius: 20px;
+      padding: 2px 10px;
+      margin-bottom: 14px;
+      text-shadow: 0 0 6px var(--accent);
+      box-shadow: 0 0 8px var(--accent-dim);
+    }
+
+    /* Einstellungs-Karten */
     .global-settings {
       display: grid;
       grid-template-columns: 1fr 1fr;
-      gap: 12px;
+      gap: 15px;
+      margin-bottom: 10px;
     }
 
     .setting-card {
-      background: rgba(255, 255, 255, 0.02);
-      border: 1px solid rgba(255, 255, 255, 0.05);
-      border-radius: 16px;
-      padding: 12px;
+      background: var(--neon-gray);
+      border: 1px solid var(--border-color);
+      border-radius: 12px;
+      padding: 12px 16px;
       display: flex;
       flex-direction: column;
       align-items: center;
       justify-content: center;
       cursor: pointer;
-      backdrop-filter: blur(10px);
-      -webkit-backdrop-filter: blur(10px);
-      transition: all var(--transition-fast);
+      transition: var(--transition);
     }
-    .setting-card:active {
-      transform: scale(0.97);
-    }
+    .setting-card:active { transform: scale(0.97); }
 
     .setting-label {
-      font-size: 0.7rem;
+      font-size: 11px;
       text-transform: uppercase;
       letter-spacing: 1.5px;
-      color: rgba(255, 255, 255, 0.4);
-      margin-bottom: 4px;
+      color: var(--text-muted);
+      margin-bottom: 6px;
     }
 
     .setting-value {
-      font-size: 1.3rem;
-      font-weight: 300;
-      color: #ffffff;
+      font-size: 20px;
+      font-weight: 600;
+      color: var(--text-color);
+      transition: var(--transition);
     }
 
-    .setting-card.highlight-break .setting-value {
+    #setting-break .setting-value {
       color: var(--neon-red);
-      text-shadow: 0 0 5px rgba(255, 59, 48, 0.3);
+      text-shadow: 0 0 5px rgba(255,59,48,0.4);
     }
 
-    /* EXERCISE LIST SECTION */
+    /* ===================== ÜBUNGSLISTE ===================== */
     .exercise-section {
       flex: 1;
       display: flex;
       flex-direction: column;
       overflow: hidden;
-      margin-bottom: 1rem;
+      margin-bottom: 12px;
     }
 
     .section-title-bar {
-      margin-bottom: 10px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 12px;
       padding: 0 4px;
     }
 
     .section-title {
-      font-size: 0.8rem;
+      font-size: 13px;
       text-transform: uppercase;
       letter-spacing: 2px;
-      color: rgba(255, 255, 255, 0.4);
+      color: var(--text-muted);
     }
 
     .exercise-list {
@@ -178,8 +262,6 @@
       flex-direction: column;
       gap: 10px;
       padding-right: 2px;
-      overscroll-behavior-y: contain;
-      -webkit-overflow-scrolling: touch;
     }
 
     .empty-state {
@@ -187,33 +269,32 @@
       align-items: center;
       justify-content: center;
       height: 100px;
-      border: 1px dashed rgba(255, 255, 255, 0.1);
-      border-radius: 16px;
-      color: rgba(255, 255, 255, 0.3);
-      font-size: 0.85rem;
+      border: 1px dashed var(--border-color);
+      border-radius: 12px;
+      color: var(--text-muted);
+      font-size: 14px;
       text-align: center;
       padding: 20px;
     }
 
-    /* EXERCISE ITEMS */
     .exercise-item {
-      background: rgba(8, 8, 8, 0.45);
-      backdrop-filter: blur(20px);
-      -webkit-backdrop-filter: blur(20px);
-      border: 1px solid rgba(255, 255, 255, 0.05);
-      border-radius: 16px;
+      background: var(--neon-gray);
+      border: 1px solid var(--border-color);
+      border-radius: 12px;
       display: flex;
       align-items: center;
-      padding: 12px 14px;
+      padding: 14px 16px;
       gap: 12px;
       cursor: grab;
-      transition: all var(--transition-fast);
+      transition: transform 0.2s, border-color 0.2s;
+      position: relative;
+      touch-action: none;
     }
 
     .exercise-item.dragging {
       opacity: 0.4;
       cursor: grabbing;
-      border: 1px dashed var(--neon-green);
+      border: 1px dashed var(--accent);
     }
 
     .drag-handle {
@@ -221,14 +302,11 @@
       flex-direction: column;
       gap: 3px;
       cursor: grab;
-      color: rgba(255, 255, 255, 0.2);
-      padding: 8px 4px;
-      touch-action: none;
+      color: var(--text-muted);
+      padding: 4px;
     }
-
     .drag-handle span {
-      width: 14px;
-      height: 1.5px;
+      width: 16px; height: 2px;
       background-color: currentColor;
       border-radius: 1px;
     }
@@ -244,70 +322,69 @@
       background: transparent;
       border: none;
       border-bottom: 1px solid transparent;
-      color: #ffffff;
+      color: var(--text-color);
       font-family: var(--font-family);
-      font-size: 1rem;
-      font-weight: 400;
+      font-size: 16px;
+      font-weight: 500;
       width: 100%;
       padding: 2px 0;
       outline: none;
-      transition: var(--transition-fast);
+      transition: var(--transition);
       user-select: text;
       -webkit-user-select: text;
     }
-
     .exercise-name-input:focus {
-      border-bottom-color: var(--neon-green);
-      color: var(--neon-green);
-      text-shadow: 0 0 5px rgba(0, 255, 102, 0.3);
+      border-bottom-color: var(--accent);
+      color: var(--accent);
+      text-shadow: 0 0 5px var(--accent-dim);
     }
 
     .exercise-time-trigger {
-      background: rgba(255, 255, 255, 0.01);
-      border: 1px solid rgba(255, 255, 255, 0.08);
-      border-radius: 10px;
+      background: rgba(255,255,255,0.05);
+      border: 1px solid var(--border-color);
+      border-radius: 8px;
       padding: 6px 12px;
-      font-size: 0.9rem;
-      font-weight: 500;
-      color: var(--neon-green);
-      text-shadow: 0 0 5px rgba(0, 255, 102, 0.2);
+      font-size: 15px;
+      font-weight: 600;
+      color: var(--accent);
+      text-shadow: 0 0 5px var(--accent-dim);
       cursor: pointer;
       white-space: nowrap;
-      transition: var(--transition-fast);
+      transition: var(--transition);
     }
     .exercise-time-trigger:hover {
-      background: rgba(0, 255, 102, 0.04);
-      border-color: rgba(0, 255, 102, 0.4);
+      background: var(--accent-dim);
+      border-color: var(--accent);
     }
 
     .delete-btn {
       background: transparent;
       border: none;
-      color: rgba(255, 255, 255, 0.3);
+      color: var(--text-muted);
       cursor: pointer;
       display: flex;
       align-items: center;
       justify-content: center;
-      width: 28px;
-      height: 28px;
+      width: 28px; height: 28px;
       border-radius: 50%;
-      transition: var(--transition-fast);
+      transition: var(--transition);
     }
     .delete-btn:hover {
       color: var(--neon-red);
-      background: rgba(255, 59, 48, 0.05);
+      background: rgba(255,59,48,0.1);
     }
 
-    /* CONTROLS AREA */
+    /* ===================== CONTROLS ===================== */
     .controls-container {
       display: flex;
       flex-direction: column;
       gap: 12px;
-      margin-top: auto;
+      margin-top: 0;
+      margin-bottom: 8px;
     }
 
     .summary-card {
-      border-top: 1px solid rgba(255, 255, 255, 0.05);
+      border-top: 1px solid var(--border-color);
       padding-top: 12px;
       display: flex;
       justify-content: space-between;
@@ -315,114 +392,97 @@
     }
 
     .summary-label {
-      font-size: 0.8rem;
+      font-size: 13px;
       text-transform: uppercase;
       letter-spacing: 2px;
-      color: rgba(255, 255, 255, 0.4);
+      color: var(--text-muted);
     }
 
     .summary-value {
-      font-size: 1.4rem;
-      font-weight: 500;
+      font-size: 22px;
+      font-weight: 700;
       letter-spacing: 1px;
     }
 
     .btn-group {
       display: flex;
-      gap: 12px;
+      gap: 15px;
       align-items: center;
     }
 
     .btn-add {
       background: transparent;
-      border: 1px solid rgba(0, 255, 102, 0.5);
+      border: 2px solid var(--accent);
       border-radius: 50%;
-      color: #ffffff;
+      color: var(--accent);
       cursor: pointer;
-      width: 54px;
-      height: 54px;
+      width: 56px; height: 56px;
       display: flex;
       align-items: center;
       justify-content: center;
-      font-size: 1.8rem;
+      font-size: 28px;
       font-weight: 300;
-      transition: all var(--transition-fast);
-      box-shadow: var(--glow-green);
+      transition: var(--transition);
+      box-shadow: var(--accent-glow);
+      flex-shrink: 0;
     }
-    .btn-add:active {
-      transform: scale(0.92);
-    }
+    .btn-add:active { transform: scale(0.92); }
 
     .btn-start {
       flex: 1;
-      background: transparent;
-      color: #ffffff;
-      border: 1px solid rgba(0, 255, 102, 0.6);
+      background: var(--accent);
+      color: #000000;
+      border: none;
       border-radius: 28px;
-      font-size: 1.1rem;
-      font-weight: 600;
+      font-size: 18px;
+      font-weight: 700;
       text-transform: uppercase;
       letter-spacing: 2px;
-      height: 54px;
+      height: 56px;
       cursor: pointer;
-      transition: all var(--transition-fast);
-      box-shadow: var(--glow-green);
-      text-shadow: 0 0 3px #ffffff;
+      transition: var(--transition);
+      box-shadow: var(--accent-glow);
     }
-    .btn-start:hover:not(:disabled) {
-      background: rgba(0, 255, 102, 0.1);
-    }
-    .btn-start:active {
-      transform: scale(0.97);
-    }
+    .btn-start:active { transform: scale(0.97); }
     .btn-start:disabled {
-      border-color: rgba(255, 255, 255, 0.05);
-      color: rgba(255, 255, 255, 0.15);
+      background: var(--border-color);
+      color: var(--text-muted);
       box-shadow: none;
-      text-shadow: none;
       cursor: not-allowed;
     }
 
-    /* WHEEL PICKER MODAL (APPLE STYLE GLASS) */
+    /* ===================== PICKER MODAL ===================== */
     .modal-overlay {
-      position: fixed;
-      top: 0; left: 0; right: 0; bottom: 0;
-      background: rgba(4, 4, 4, 0.85);
-      backdrop-filter: blur(20px);
-      -webkit-backdrop-filter: blur(20px);
+      position: fixed; inset: 0;
+      background: rgba(0,0,0,0.85);
       display: flex;
       align-items: flex-end;
       justify-content: center;
       opacity: 0;
       pointer-events: none;
-      transition: opacity 0.3s cubic-bezier(0.16, 1, 0.3, 1);
-      z-index: 1000;
+      transition: opacity 0.3s cubic-bezier(0.16,1,0.3,1);
+      z-index: 3000;
     }
-
     .modal-overlay.active {
       opacity: 1;
       pointer-events: auto;
     }
 
     .modal-content {
-      background: rgba(15, 15, 15, 0.7);
-      border-top: 1px solid rgba(255, 255, 255, 0.08);
-      border-top-left-radius: 24px;
-      border-top-right-radius: 24px;
+      background: #121212;
+      border-top: 1px solid var(--border-color);
+      border-top-left-radius: 20px;
+      border-top-right-radius: 20px;
       width: 100%;
-      max-width: 500px;
+      max-width: 600px;
       padding: 24px;
-      padding-bottom: calc(24px + env(safe-area-inset-bottom));
       transform: translateY(100%);
-      transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+      transition: transform 0.3s cubic-bezier(0.16,1,0.3,1);
       display: flex;
       flex-direction: column;
       gap: 20px;
     }
-
-    .modal-overlay.active .modal-content {
-      transform: translateY(0);
-    }
+    .modal-overlay.active .modal-content { transform: translateY(0); }
 
     .modal-header {
       display: flex;
@@ -431,24 +491,23 @@
     }
 
     .modal-title {
-      font-size: 0.8rem;
-      font-weight: 500;
-      letter-spacing: 1.5px;
+      font-size: 16px;
+      font-weight: 600;
+      letter-spacing: 1px;
       text-transform: uppercase;
-      color: rgba(255, 255, 255, 0.4);
+      color: var(--text-muted);
     }
 
     .modal-close-btn {
       background: transparent;
       border: none;
-      color: var(--neon-green);
-      font-size: 0.95rem;
+      color: var(--accent);
+      font-size: 16px;
       font-weight: 600;
       cursor: pointer;
-      text-transform: uppercase;
-      letter-spacing: 1px;
     }
 
+    /* Wheel Picker */
     .wheel-picker-container {
       display: flex;
       justify-content: center;
@@ -456,9 +515,9 @@
       height: 200px;
       position: relative;
       overflow: hidden;
-      background: rgba(0, 0, 0, 0.4);
-      border-radius: 16px;
-      border: 1px solid rgba(255, 255, 255, 0.03);
+      background: #090909;
+      border-radius: 12px;
+      border: 1px solid var(--border-color);
     }
 
     .wheel-column {
@@ -470,9 +529,7 @@
       position: relative;
       padding: 80px 0;
     }
-    .wheel-column::-webkit-scrollbar {
-      display: none;
-    }
+    .wheel-column::-webkit-scrollbar { display: none; }
 
     .wheel-scroll-track {
       display: flex;
@@ -484,107 +541,110 @@
       display: flex;
       align-items: center;
       justify-content: center;
-      font-size: 1.2rem;
-      color: rgba(255, 255, 255, 0.3);
+      font-size: 20px;
+      color: var(--text-muted);
       scroll-snap-align: center;
-      transition: all 0.2s ease;
-      scroll-margin: 80px 0;
+      transition: color 0.2s, font-size 0.2s, transform 0.2s;
     }
-
     .wheel-item.selected {
-      color: #ffffff;
-      font-size: 1.5rem;
-      font-weight: 600;
-      transform: scale(1.05);
+      color: var(--text-color);
+      font-size: 24px;
+      font-weight: 700;
+      transform: scale(1.1);
     }
 
     .wheel-selection-indicator {
       position: absolute;
-      top: 80px; left: 0; right: 0; height: 40px;
-      border-top: 1px solid rgba(255, 255, 255, 0.05);
-      border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+      top: 80px; left: 0; right: 0;
+      height: 40px;
+      border-top: 1px solid var(--border-color);
+      border-bottom: 1px solid var(--border-color);
       pointer-events: none;
-      background: rgba(255, 255, 255, 0.01);
+      background: rgba(255,255,255,0.02);
     }
 
     .wheel-fade-overlay {
-      position: absolute;
-      top: 0; left: 0; right: 0; bottom: 0;
+      position: absolute; inset: 0;
       pointer-events: none;
       background: linear-gradient(
         to bottom,
-        rgba(5, 5, 5, 0.95) 0%,
-        rgba(5, 5, 5, 0.6) 20%,
+        rgba(9,9,9,0.95) 0%,
+        rgba(9,9,9,0.6) 20%,
         transparent 40%,
         transparent 60%,
-        rgba(5, 5, 5, 0.6) 80%,
-        rgba(5, 5, 5, 0.95) 100
+        rgba(9,9,9,0.6) 80%,
+        rgba(9,9,9,0.95) 100%
       );
     }
 
     .picker-divider {
-      font-size: 1.5rem;
-      color: rgba(255, 255, 255, 0.2);
+      font-size: 28px;
+      color: var(--text-muted);
       margin: 0 10px;
     }
 
-    /* FULLSCREEN WORKOUT TIMER OVERLAY */
+    /* ===================== TIMER OVERLAY (Intervall) ===================== */
     .timer-overlay {
-      position: fixed;
-      top: 0; left: 0; right: 0; bottom: 0;
-      background: var(--bg-black);
+      position: fixed; inset: 0;
+      background: var(--bg-color);
       z-index: 2000;
       display: flex;
       flex-direction: column;
       justify-content: space-between;
       padding: 40px 24px;
-      padding-top: calc(40px + env(safe-area-inset-top));
-      padding-bottom: calc(40px + env(safe-area-inset-bottom));
       opacity: 0;
       pointer-events: none;
       transition: opacity 0.5s ease;
-      overscroll-behavior: none;
     }
-
     .timer-overlay.active {
       opacity: 1;
       pointer-events: auto;
     }
 
     .timer-overlay.state-exercise {
-      --theme-color: var(--neon-green);
-      --theme-glow: var(--glow-text-green);
+      --theme-color: var(--neon-green, #00ff66);
+      --theme-glow:  0 0 10px rgba(0,255,102,0.6), 0 0 25px rgba(0,255,102,0.3);
     }
-
     .timer-overlay.state-break {
       --theme-color: var(--neon-red);
-      --theme-glow: var(--glow-text-red);
+      --theme-glow:  var(--neon-red-glow);
+    }
+
+    /* Timer: Intervall – grün */
+    #timer-overlay.state-exercise {
+      --theme-color: #00ff66;
+      --theme-glow: 0 0 10px rgba(0,255,102,0.6), 0 0 25px rgba(0,255,102,0.3);
+    }
+    #timer-overlay.state-break {
+      --theme-color: #ff3b30;
+      --theme-glow: 0 0 10px rgba(255,59,48,0.6), 0 0 25px rgba(255,59,48,0.3);
     }
 
     .timer-header {
       text-align: center;
       display: flex;
       flex-direction: column;
-      gap: 6px;
+      gap: 8px;
     }
 
     .timer-cycle-count {
-      font-size: 0.85rem;
+      font-size: 14px;
       text-transform: uppercase;
-      letter-spacing: 2px;
-      color: rgba(255, 255, 255, 0.4);
+      letter-spacing: 3px;
+      color: var(--text-muted);
     }
 
     .timer-exercise-name {
-      font-size: 1.8rem;
+      font-size: 32px;
       font-weight: 300;
       letter-spacing: 1px;
       color: var(--theme-color);
       text-shadow: var(--theme-glow);
       text-transform: uppercase;
-      margin-top: 6px;
-      transition: var(--transition-fast);
+      margin-top: 10px;
+      transition: var(--transition);
       word-wrap: break-word;
+      max-width: 100%;
     }
 
     .timer-display-container {
@@ -596,33 +656,30 @@
     }
 
     .timer-seconds {
-      font-size: 6.5rem;
+      font-size: 130px;
       font-weight: 100;
       font-variant-numeric: tabular-nums;
       line-height: 1;
       color: var(--theme-color);
       text-shadow: var(--theme-glow);
-      transition: var(--transition-fast);
     }
 
     .overall-time-container {
-      margin-top: 20px;
+      margin-top: 15px;
       text-align: center;
     }
-
     .overall-time-label {
-      font-size: 0.7rem;
+      font-size: 11px;
       text-transform: uppercase;
-      letter-spacing: 1.5px;
-      color: rgba(255, 255, 255, 0.3);
-      margin-bottom: 2px;
+      letter-spacing: 2px;
+      color: var(--text-muted);
+      margin-bottom: 4px;
     }
-
     .overall-time-value {
-      font-size: 1.2rem;
-      font-weight: 400;
+      font-size: 20px;
+      font-weight: 600;
       font-variant-numeric: tabular-nums;
-      color: #ffffff;
+      color: var(--text-color);
     }
 
     .timer-footer {
@@ -634,98 +691,242 @@
 
     .timer-btn-group {
       display: flex;
-      gap: 14px;
+      gap: 12px;
       width: 100%;
       max-width: 400px;
     }
 
     .btn-timer-action {
       flex: 1;
-      height: 52px;
-      border-radius: 26px;
-      font-family: inherit;
-      font-size: 0.9rem;
-      font-weight: 600;
+      height: 56px;
+      border-radius: 28px;
+      font-size: 15px;
+      font-weight: 700;
       text-transform: uppercase;
       letter-spacing: 1.5px;
       cursor: pointer;
-      transition: all var(--transition-fast);
-      background: transparent;
-      color: #ffffff;
-      border: 1px solid rgba(255, 255, 255, 0.2);
+      transition: var(--transition);
     }
-    .btn-timer-action:active {
-      background: rgba(255, 255, 255, 0.05);
+
+    .btn-pause, .btn-skip {
+      background: transparent;
+      border: 2px solid var(--text-color);
+      color: var(--text-color);
+    }
+    .btn-pause:active, .btn-skip:active {
+      background: rgba(255,255,255,0.1);
     }
 
     .btn-stop {
-      border-color: rgba(255, 59, 48, 0.5);
-      box-shadow: var(--glow-red);
+      background: var(--neon-red);
+      border: none;
+      color: #ffffff;
+      box-shadow: var(--neon-red-glow);
     }
-    .btn-stop:active {
-      transform: scale(0.97);
-    }
+    .btn-stop:active { transform: scale(0.97); }
 
     .next-up-card {
-      font-size: 0.8rem;
-      color: rgba(255, 255, 255, 0.4);
+      font-size: 13px;
+      color: var(--text-muted);
       text-align: center;
-      max-width: 90%;
+      max-width: 80%;
       word-wrap: break-word;
-      letter-spacing: 0.5px;
     }
-
     .next-up-value {
-      font-weight: 500;
+      font-weight: 600;
+      color: var(--text-color);
+    }
+
+    /* ===================== TRAINING OVERLAY (manuell, Rot) ===================== */
+    .training-overlay {
+      position: fixed; inset: 0;
+      background: var(--bg-color);
+      z-index: 2000;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      padding: 40px 24px;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.5s ease;
+    }
+    .training-overlay.active {
+      opacity: 1;
+      pointer-events: auto;
+    }
+
+    .training-header {
+      text-align: center;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .training-cycle-count {
+      font-size: 14px;
+      text-transform: uppercase;
+      letter-spacing: 3px;
+      color: var(--text-muted);
+    }
+
+    .training-exercise-name {
+      font-size: 32px;
+      font-weight: 300;
+      letter-spacing: 1px;
+      color: var(--neon-red);
+      text-shadow: var(--neon-red-glow);
+      text-transform: uppercase;
+      margin-top: 10px;
+      word-wrap: break-word;
+      max-width: 100%;
+    }
+
+    .training-center {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      flex: 1;
+      gap: 24px;
+    }
+
+    .btn-done {
+      width: 160px;
+      height: 160px;
+      border-radius: 50%;
+      background: transparent;
+      border: 3px solid var(--neon-red);
+      color: var(--neon-red);
+      font-size: 64px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-shadow: var(--neon-red-glow);
+      transition: var(--transition);
+    }
+    .btn-done:active {
+      transform: scale(0.92);
+      background: rgba(255,59,48,0.1);
+    }
+
+    .training-next-up {
+      font-size: 13px;
+      color: var(--text-muted);
+      text-align: center;
+      max-width: 80%;
+    }
+    .training-next-up-value {
+      font-weight: 600;
+      color: var(--text-color);
+    }
+
+    .training-footer {
+      display: flex;
+      justify-content: center;
+    }
+
+    .btn-training-stop {
+      background: var(--neon-red);
+      border: none;
       color: #ffffff;
+      box-shadow: var(--neon-red-glow);
+      height: 56px;
+      border-radius: 28px;
+      font-size: 16px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 2px;
+      cursor: pointer;
+      width: 100%;
+      max-width: 400px;
+      transition: var(--transition);
+    }
+    .btn-training-stop:active { transform: scale(0.97); }
+
+    /* ===================== BLINKEFFEKTE ===================== */
+    /* Kurze Blitzer (bei 3/2/1 Sek.) – heller & länger als vorher */
+    .flash-short-exercise { animation: flash-short-green-anim 0.5s ease-out; }
+    .flash-short-break    { animation: flash-short-red-anim   0.5s ease-out; }
+    /* Langer Blitz (bei 0 Sek.) – deutlich heller & länger */
+    .flash-long-exercise  { animation: flash-long-green-anim  1.2s ease-out; }
+    .flash-long-break     { animation: flash-long-red-anim    1.2s ease-out; }
+
+    @keyframes flash-short-green-anim {
+      0%   { background-color: #007a33; }
+      100% { background-color: #000000; }
+    }
+    @keyframes flash-short-red-anim {
+      0%   { background-color: #7a1510; }
+      100% { background-color: #000000; }
+    }
+    @keyframes flash-long-green-anim {
+      0%   { background-color: #00e85c; }
+      100% { background-color: #000000; }
+    }
+    @keyframes flash-long-red-anim {
+      0%   { background-color: #e8342a; }
+      100% { background-color: #000000; }
     }
 
-    /* FLASHING ANIMATIONS */
-    .flash-short-exercise { animation: flash-short-green-anim 0.25s ease-out; }
-    .flash-short-break { animation: flash-short-red-anim 0.25s ease-out; }
-    .flash-long-exercise { animation: flash-long-green-anim 0.6s ease-out; }
-    .flash-long-break { animation: flash-long-red-anim 0.6s ease-out; }
+    /* Training-Modus Blitz (immer Rot) */
+    .flash-training { animation: flash-long-red-anim 0.8s ease-out; }
 
-    @keyframes flash-short-green-anim { 0% { background-color: rgba(0, 255, 102, 0.15); } 100% { background-color: #000000; } }
-    @keyframes flash-short-red-anim { 0% { background-color: rgba(255, 59, 48, 0.15); } 100% { background-color: #000000; } }
-    @keyframes flash-long-green-anim { 0% { background-color: rgba(0, 255, 102, 0.4); } 100% { background-color: #000000; } }
-    @keyframes flash-long-red-anim { 0% { background-color: rgba(255, 59, 48, 0.4); } 100% { background-color: #000000; } }
+    /* Drag-Cursor */
+    [draggable="true"] { -webkit-user-drag: element; }
 
-    [draggable="true"] {
-      -webkit-user-drag: element;
-    }
-
+    /* Responsive */
     @media (max-height: 700px) {
       .app-container { padding: 10px; }
-      h1 { font-size: 1.6rem; margin-bottom: 8px; }
-      .timer-seconds { font-size: 5rem; }
-      .timer-exercise-name { font-size: 1.4rem; }
-      .btn-add, .btn-start, .btn-timer-action { height: 46px; }
-      .btn-add { width: 46px; }
+      h1 { font-size: 22px; margin-bottom: 10px; }
+      .timer-seconds { font-size: 90px; }
+      .timer-exercise-name { font-size: 24px; }
+      .btn-add, .btn-start, .btn-timer-action { height: 48px; }
+      .btn-add { width: 48px; }
+      .btn-done { width: 120px; height: 120px; font-size: 48px; }
     }
   </style>
 </head>
 <body>
 
-  <audio id="native-beep-audio" preload="auto" playsinline></audio>
-  <div class="ambient-glow"></div>
+  <!-- ===== SLIDEOVER ===== -->
+  <div class="slideover-backdrop" id="slideover-backdrop" onclick="closeSlideOver()"></div>
+  <div class="slideover" id="slideover">
+    <div class="slideover-title">Modus wählen</div>
+    <button class="slideover-btn active-mode" id="btn-mode-interval" onclick="setMode('interval')">
+      <span class="mode-dot dot-interval"></span>
+      Intervall
+    </button>
+    <button class="slideover-btn" id="btn-mode-training" onclick="setMode('training')">
+      <span class="mode-dot dot-training"></span>
+      Training
+    </button>
+  </div>
 
+  <!-- ===== SETUP-SCREEN ===== -->
   <div class="app-container" id="app-setup-screen">
+
+    <!-- Hamburger -->
+    <button class="hamburger-btn" onclick="openSlideOver()" aria-label="Menü öffnen">☰</button>
+
     <header>
       <h1>Neon Intervals</h1>
-      
+      <div class="mode-badge" id="mode-badge">Intervall</div>
+
+      <!-- Einstellungs-Karten -->
       <div class="global-settings">
         <div class="setting-card" id="setting-cycles" onclick="openCyclesPicker()">
           <span class="setting-label">Zyklen</span>
           <span class="setting-value" id="cycles-value">3</span>
         </div>
-        <div class="setting-card highlight-break" id="setting-break" onclick="openBreakPicker()">
+        <div class="setting-card" id="setting-break" onclick="openBreakPicker()">
           <span class="setting-label">Pausenzeit</span>
           <span class="setting-value" id="break-value">00:30</span>
         </div>
       </div>
     </header>
 
+    <!-- Übungsliste -->
     <main class="exercise-section">
       <div class="section-title-bar">
         <span class="section-title">Übungen</span>
@@ -733,12 +934,12 @@
       <div class="exercise-list" id="exercise-list"></div>
     </main>
 
+    <!-- Controls -->
     <footer class="controls-container">
-      <div class="summary-card">
+      <div class="summary-card" id="summary-card">
         <span class="summary-label">Gesamtzeit</span>
         <span class="summary-value" id="total-duration-summary">00:00</span>
       </div>
-      
       <div class="btn-group">
         <button class="btn-add" id="add-exercise-btn" onclick="addNewExercise()" aria-label="Übung hinzufügen">+</button>
         <button class="btn-start" id="start-timer-btn" onclick="startWorkout()" disabled>Start</button>
@@ -746,6 +947,7 @@
     </footer>
   </div>
 
+  <!-- ===== PICKER MODAL ===== -->
   <div class="modal-overlay" id="picker-modal">
     <div class="modal-content">
       <div class="modal-header">
@@ -756,107 +958,151 @@
     </div>
   </div>
 
+  <!-- ===== TIMER OVERLAY (Intervall) ===== -->
   <div class="timer-overlay" id="timer-overlay">
     <div class="timer-header">
       <span class="timer-cycle-count" id="running-cycle-label">Runde 1 / 3</span>
       <h2 class="timer-exercise-name" id="running-item-label">Kniebeugen</h2>
     </div>
-
     <div class="timer-display-container">
-      <div class="timer-seconds" id="running-timer-seconds">00:45</div>
-      
+      <div class="timer-seconds" id="running-timer-seconds">00:30</div>
       <div class="overall-time-container">
         <div class="overall-time-label">Gesamte Restzeit</div>
-        <div class="overall-time-value" id="running-overall-time">05:15</div>
+        <div class="overall-time-value" id="running-overall-time">05:00</div>
       </div>
     </div>
-
     <div class="timer-footer">
       <div class="next-up-card" id="next-up-card">
-        Nächste Übung: <span class="next-up-value" id="running-next-item">Liegestütze</span>
+        Nächste Übung: <span class="next-up-value" id="running-next-item"></span>
       </div>
-      
       <div class="timer-btn-group">
-        <button class="btn-timer-action" id="timer-pause-btn" onclick="togglePauseWorkout()">Pause</button>
-        <button class="btn-timer-action" id="timer-skip-btn" onclick="skipCurrentStep()">Weiter</button>
-        <button class="btn-timer-action btn-stop" onclick="stopWorkout()">Beenden</button>
+        <button class="btn-timer-action btn-pause" id="timer-pause-btn" onclick="togglePauseWorkout()">Pause</button>
+        <button class="btn-timer-action btn-skip"  id="timer-skip-btn"  onclick="skipCurrentStep()">Weiter</button>
+        <button class="btn-timer-action btn-stop"                        onclick="stopWorkout()">Beenden</button>
       </div>
     </div>
   </div>
 
-  <script>
-    (function() {
-      let exercises = [
-        { id: 'ex-1', name: 'Kniebeugen', minutes: 0, seconds: 45 },
-        { id: 'ex-2', name: 'Liegestütze', minutes: 0, seconds: 30 },
-        { id: 'ex-3', name: 'Plank', minutes: 0, seconds: 45 }
-      ];
+  <!-- ===== TRAINING OVERLAY (manuell) ===== -->
+  <div class="training-overlay" id="training-overlay">
+    <div class="training-header">
+      <span class="training-cycle-count" id="tr-cycle-label">Runde 1 / 3</span>
+      <h2 class="training-exercise-name" id="tr-exercise-name">Kniebeugen</h2>
+    </div>
+    <div class="training-center">
+      <button class="btn-done" id="btn-done" onclick="trainingNext()">✓</button>
+      <div class="training-next-up" id="tr-next-up">
+        Nächste Übung: <span class="training-next-up-value" id="tr-next-name"></span>
+      </div>
+    </div>
+    <div class="training-footer">
+      <button class="btn-training-stop" onclick="stopTraining()">Beenden</button>
+    </div>
+  </div>
 
-      let globalBreak = { minutes: 0, seconds: 15 };
+  <!-- ===== SCRIPT ===== -->
+  <script>
+    (function () {
+
+      /* ===================================================
+         STATE
+      =================================================== */
+      let currentMode = 'interval'; // 'interval' | 'training'
+
+      // Separate Listen je Modus (aus LocalStorage laden)
+      let intervalExercises = loadFromStorage('interval-exercises', [
+        { id: 'ex-1', name: 'Kniebeugen',  minutes: 0, seconds: 30 },
+        { id: 'ex-2', name: 'Liegestütze', minutes: 0, seconds: 30 },
+        { id: 'ex-3', name: 'Plank',       minutes: 0, seconds: 30 }
+      ]);
+
+      let trainingExercises = loadFromStorage('training-exercises', [
+        { id: 'tr-1', name: 'Kniebeugen',  minutes: 0, seconds: 0 },
+        { id: 'tr-2', name: 'Liegestütze', minutes: 0, seconds: 0 }
+      ]);
+
+      // Aktive Liste (Referenz je Modus)
+      function getExercises()    { return currentMode === 'interval' ? intervalExercises : trainingExercises; }
+      function setExercises(arr) {
+        if (currentMode === 'interval') intervalExercises = arr;
+        else trainingExercises = arr;
+        saveExercises();
+      }
+
+      function saveExercises() {
+        localStorage.setItem('interval-exercises', JSON.stringify(intervalExercises));
+        localStorage.setItem('training-exercises', JSON.stringify(trainingExercises));
+      }
+
+      function loadFromStorage(key, defaultVal) {
+        try {
+          const raw = localStorage.getItem(key);
+          return raw ? JSON.parse(raw) : defaultVal;
+        } catch (e) { return defaultVal; }
+      }
+
+      let globalBreak = { minutes: 0, seconds: 30 };
       let cycles = 3;
 
+      // Timer-State (Intervall)
       let timer = {
         intervalId: null,
-        state: 'setup', 
+        state: 'setup',
         playlist: [],
         currentStepIndex: 0,
         stepSecondsRemaining: 0,
-        overallSecondsRemaining: 0
+        overallSecondsRemaining: 0,
+        audioContext: null
       };
 
-      const BEEP_SOUND_SRC = "data:audio/wav;base64,UklGRl9vT19XQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YU92T19fX19fX19fX35+fn5+fn5+fn9/f39/f39/f3+AgICAgICAgIBehaviorfX19fX19fX19fX19fX19fX19fX19fX19fX19fX19fX19fX19fX19fX19fX19fX19fX19fX19fX19fX19fX19fX19fX19fX19fX19fX19fX19fX19fX19fX19fX19fX19fX19fX19fX19fX19fX19fX19fX19fX19fX19fX2dnZ2dnZ2dnZ2dnZ39/f39/f39/f39/f4CAgICAgICAgICAf39/f39/f39/f39/f2dnZ2dnZ2dnZ2dnZw==";
+      // Training-State (manuell)
+      let training = {
+        playlist: [],    // [{name, cycle}]
+        currentIndex: 0
+      };
 
       let activePicker = { type: null, targetId: null };
 
-      let exerciseListContainer, totalDurationSummary, startTimerBtn, cyclesValueDisplay, breakValueDisplay;
-      let pickerModal, pickerModalTitle, wheelPickerContent, timerOverlay, runningCycleLabel;
-      let runningItemLabel, runningTimerSeconds, runningOverallTime, runningNextItem, nextUpCard, timerPauseBtn, nativeAudioElement;
-
-      function saveToLocalStorage() {
-        localStorage.setItem('neon_intervals_exercises', JSON.stringify(exercises));
-        localStorage.setItem('neon_intervals_break', JSON.stringify(globalBreak));
-        localStorage.setItem('neon_intervals_cycles', cycles);
-      }
-
-      function loadFromLocalStorage() {
-        const localEx = localStorage.getItem('neon_intervals_exercises');
-        const localBreak = localStorage.getItem('neon_intervals_break');
-        const localCycles = localStorage.getItem('neon_intervals_cycles');
-
-        if (localEx) exercises = JSON.parse(localEx);
-        if (localBreak) globalBreak = JSON.parse(localBreak);
-        if (localCycles) cycles = parseInt(localCycles, 10);
-      }
+      /* ===================================================
+         DOM-REFERENZEN
+      =================================================== */
+      let exerciseListContainer, totalDurationSummary, startTimerBtn,
+          cyclesValueDisplay, breakValueDisplay,
+          pickerModal, pickerModalTitle, wheelPickerContent,
+          timerOverlay, runningCycleLabel, runningItemLabel,
+          runningTimerSeconds, runningOverallTime, runningNextItem,
+          nextUpCard, timerPauseBtn,
+          trainingOverlayEl, trCycleLabel, trExerciseName,
+          trNextUp, trNextName,
+          summaryCard, settingBreakCard, modeBadge;
 
       function init() {
-        loadFromLocalStorage();
-
         exerciseListContainer = document.getElementById('exercise-list');
-        totalDurationSummary = document.getElementById('total-duration-summary');
-        startTimerBtn = document.getElementById('start-timer-btn');
-        cyclesValueDisplay = document.getElementById('cycles-value');
-        breakValueDisplay = document.getElementById('break-value');
-        pickerModal = document.getElementById('picker-modal');
-        pickerModalTitle = document.getElementById('picker-modal-title');
-        wheelPickerContent = document.getElementById('wheel-picker-content');
-        timerOverlay = document.getElementById('timer-overlay');
-        runningCycleLabel = document.getElementById('running-cycle-label');
-        runningItemLabel = document.getElementById('running-item-label');
-        runningTimerSeconds = document.getElementById('running-timer-seconds');
-        runningOverallTime = document.getElementById('running-overall-time');
-        runningNextItem = document.getElementById('running-next-item');
-        nextUpCard = document.getElementById('next-up-card');
-        timerPauseBtn = document.getElementById('timer-pause-btn');
-        nativeAudioElement = document.getElementById('native-beep-audio');
+        totalDurationSummary  = document.getElementById('total-duration-summary');
+        startTimerBtn         = document.getElementById('start-timer-btn');
+        cyclesValueDisplay    = document.getElementById('cycles-value');
+        breakValueDisplay     = document.getElementById('break-value');
+        pickerModal           = document.getElementById('picker-modal');
+        pickerModalTitle      = document.getElementById('picker-modal-title');
+        wheelPickerContent    = document.getElementById('wheel-picker-content');
+        timerOverlay          = document.getElementById('timer-overlay');
+        runningCycleLabel     = document.getElementById('running-cycle-label');
+        runningItemLabel      = document.getElementById('running-item-label');
+        runningTimerSeconds   = document.getElementById('running-timer-seconds');
+        runningOverallTime    = document.getElementById('running-overall-time');
+        runningNextItem       = document.getElementById('running-next-item');
+        nextUpCard            = document.getElementById('next-up-card');
+        timerPauseBtn         = document.getElementById('timer-pause-btn');
+        trainingOverlayEl     = document.getElementById('training-overlay');
+        trCycleLabel          = document.getElementById('tr-cycle-label');
+        trExerciseName        = document.getElementById('tr-exercise-name');
+        trNextUp              = document.getElementById('tr-next-up');
+        trNextName            = document.getElementById('tr-next-name');
+        summaryCard           = document.getElementById('summary-card');
+        settingBreakCard      = document.getElementById('setting-break');
+        modeBadge             = document.getElementById('mode-badge');
 
-        if (nativeAudioElement) nativeAudioElement.src = BEEP_SOUND_SRC;
-
-        document.addEventListener('touchmove', function(e) {
-          if (!e.target.closest('#exercise-list') && !e.target.closest('.wheel-column')) {
-            e.preventDefault();
-          }
-        }, { passive: false });
-
+        applyMode(currentMode, false);
         renderExerciseList();
         updateSummary();
         initDragAndDrop();
@@ -868,49 +1114,95 @@
         init();
       }
 
+      /* ===================================================
+         SLIDEOVER / MODUS
+      =================================================== */
+      function openSlideOver() {
+        document.getElementById('slideover').classList.add('active');
+        document.getElementById('slideover-backdrop').classList.add('active');
+      }
+      function closeSlideOver() {
+        document.getElementById('slideover').classList.remove('active');
+        document.getElementById('slideover-backdrop').classList.remove('active');
+      }
+
+      function setMode(mode) {
+        currentMode = mode;
+        applyMode(mode, true);
+        closeSlideOver();
+        renderExerciseList();
+        updateSummary();
+      }
+
+      function applyMode(mode, animate) {
+        const body = document.body;
+        const btnInterval = document.getElementById('btn-mode-interval');
+        const btnTraining = document.getElementById('btn-mode-training');
+
+        if (mode === 'training') {
+          body.classList.add('mode-training');
+          btnInterval.classList.remove('active-mode');
+          btnTraining.classList.add('active-mode');
+          if (modeBadge) modeBadge.innerText = 'Training';
+          // Pause-Karte ausblenden, Zeitauswahl verstecken
+          if (settingBreakCard) settingBreakCard.style.display = 'none';
+          if (summaryCard) summaryCard.style.display = 'none';
+        } else {
+          body.classList.remove('mode-training');
+          btnInterval.classList.add('active-mode');
+          btnTraining.classList.remove('active-mode');
+          if (modeBadge) modeBadge.innerText = 'Intervall';
+          if (settingBreakCard) settingBreakCard.style.display = '';
+          if (summaryCard) summaryCard.style.display = '';
+        }
+      }
+
+      /* ===================================================
+         HILFSFUNKTIONEN
+      =================================================== */
       function formatTime(mins, secs) {
         return `${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
       }
-
-      function formatSeconds(totalSeconds) {
-        const mins = Math.floor(totalSeconds / 60);
-        const secs = totalSeconds % 60;
-        return formatTime(mins, secs);
+      function formatSeconds(total) {
+        return formatTime(Math.floor(total / 60), total % 60);
       }
 
+      /* ===================================================
+         ÜBUNGSLISTE
+      =================================================== */
       function renderExerciseList() {
         if (!exerciseListContainer) return;
         exerciseListContainer.innerHTML = '';
-        
-        if (exercises.length === 0) {
-          exerciseListContainer.innerHTML = `<div class="empty-state">Keine Übungen vorhanden. Tippe auf "+", um eine Übung hinzuzufügen.</div>`;
+        const exArr = getExercises();
+
+        if (exArr.length === 0) {
+          exerciseListContainer.innerHTML =
+            `<div class="empty-state">Keine Übungen vorhanden.<br>Tippe auf „+", um eine Übung hinzuzufügen.</div>`;
           if (startTimerBtn) startTimerBtn.disabled = true;
           return;
         }
-        
         if (startTimerBtn) startTimerBtn.disabled = false;
 
-        exercises.forEach((ex) => {
+        exArr.forEach((ex) => {
           const item = document.createElement('div');
           item.className = 'exercise-item';
           item.draggable = true;
           item.dataset.id = ex.id;
-          
+
+          // Im Trainings-Modus keine Zeitauswahl zeigen
+          const timeBtn = currentMode === 'interval'
+            ? `<div class="exercise-time-trigger" onclick="window.openExerciseTimePicker('${ex.id}')">${formatTime(ex.minutes, ex.seconds)}</div>`
+            : '';
+
           item.innerHTML = `
             <div class="drag-handle" title="Reihenfolge ändern">
               <span></span><span></span><span></span>
             </div>
             <div class="exercise-info">
-              <input 
-                type="text" 
-                class="exercise-name-input" 
-                value="${ex.name}" 
-                placeholder="Name der Übung"
-                onchange="window.renameExercise('${ex.id}', this.value)"
-              />
-              <div class="exercise-time-trigger" onclick="window.openExerciseTimePicker('${ex.id}')">
-                ${formatTime(ex.minutes, ex.seconds)}
-              </div>
+              <input type="text" class="exercise-name-input"
+                value="${ex.name}" placeholder="Name der Übung"
+                onchange="window.renameExercise('${ex.id}', this.value)" />
+              ${timeBtn}
             </div>
             <button class="delete-btn" onclick="window.deleteExercise('${ex.id}')" aria-label="Löschen">✕</button>
           `;
@@ -919,12 +1211,12 @@
       }
 
       function addNewExercise() {
-        const id = 'ex-' + Date.now();
-        exercises.push({ id: id, name: `Übung ${exercises.length + 1}`, minutes: 0, seconds: 45 });
-        saveToLocalStorage();
+        const id = (currentMode === 'interval' ? 'ex-' : 'tr-') + Date.now();
+        const exArr = getExercises();
+        exArr.push({ id, name: `Übung ${exArr.length + 1}`, minutes: 0, seconds: 30 });
+        setExercises(exArr);
         renderExerciseList();
         updateSummary();
-        
         setTimeout(() => {
           const input = exerciseListContainer.querySelector(`[data-id="${id}"] .exercise-name-input`);
           if (input) { input.focus(); input.select(); }
@@ -932,22 +1224,24 @@
       }
 
       function renameExercise(id, newName) {
-        const index = exercises.findIndex(ex => ex.id === id);
-        if (index !== -1) {
-          exercises[index].name = newName.trim() || `Übung ${index + 1}`;
-          saveToLocalStorage();
+        const exArr = getExercises();
+        const idx = exArr.findIndex(e => e.id === id);
+        if (idx !== -1) {
+          exArr[idx].name = newName.trim() || `Übung ${idx + 1}`;
+          setExercises(exArr);
           renderExerciseList();
         }
       }
 
       function deleteExercise(id) {
-        exercises = exercises.filter(ex => ex.id !== id);
-        saveToLocalStorage();
+        setExercises(getExercises().filter(e => e.id !== id));
         renderExerciseList();
         updateSummary();
       }
 
-      /* DRAG & DROP IMPLEMENTATION */
+      /* ===================================================
+         DRAG & DROP
+      =================================================== */
       let draggedElement = null;
 
       function initDragAndDrop() {
@@ -959,234 +1253,191 @@
             item.classList.add('dragging');
             e.dataTransfer.effectAllowed = 'move';
           });
-
           exerciseListContainer.addEventListener('dragover', (e) => {
             e.preventDefault();
             if (!draggedElement) return;
-            const container = exerciseListContainer;
-            const afterElement = getDragAfterElement(container, e.clientY);
-            if (afterElement == null) {
-              container.appendChild(draggedElement);
-            } else {
-              container.insertBefore(draggedElement, afterElement);
-            }
+            const after = getDragAfterElement(exerciseListContainer, e.clientY);
+            if (after == null) exerciseListContainer.appendChild(draggedElement);
+            else exerciseListContainer.insertBefore(draggedElement, after);
           });
-
-          exerciseListContainer.addEventListener('dragend', (e) => {
+          exerciseListContainer.addEventListener('dragend', () => {
             if (!draggedElement) return;
             draggedElement.classList.remove('dragging');
             draggedElement = null;
             saveListOrderFromDOM();
           });
 
-          /* Mobile D&D Touch Engine */
-          let touchStartElement = null;
+          let touchStart = null;
           exerciseListContainer.addEventListener('touchstart', (e) => {
             const handle = e.target.closest('.drag-handle');
-            if (!handle) return; 
+            if (!handle) return;
             const item = handle.closest('.exercise-item');
             if (!item) return;
-            touchStartElement = item;
+            touchStart = item;
             item.classList.add('dragging');
             e.preventDefault();
           }, { passive: false });
-
-          document.addEventListener('touchmove', (e) => {
-            if (!touchStartElement) return;
+          exerciseListContainer.addEventListener('touchmove', (e) => {
+            if (!touchStart) return;
             e.preventDefault();
             const touch = e.touches[0];
-            const elementAtPoint = document.elementFromPoint(touch.clientX, touch.clientY);
-            if (!elementAtPoint) return;
-            
-            const targetItem = elementAtPoint.closest('.exercise-item');
-            if (targetItem && targetItem !== touchStartElement && targetItem.parentNode === exerciseListContainer) {
-              const box = targetItem.getBoundingClientRect();
-              const midPoint = box.top + box.height / 2;
-              if (touch.clientY < midPoint) {
-                exerciseListContainer.insertBefore(touchStartElement, targetItem);
-              } else {
-                exerciseListContainer.insertBefore(touchStartElement, targetItem.nextSibling);
-              }
+            const el = document.elementFromPoint(touch.clientX, touch.clientY);
+            if (!el) return;
+            const target = el.closest('.exercise-item');
+            if (target && target !== touchStart && target.parentNode === exerciseListContainer) {
+              const mid = target.getBoundingClientRect().top + target.getBoundingClientRect().height / 2;
+              exerciseListContainer.insertBefore(touchStart, touch.clientY < mid ? target : target.nextSibling);
             }
           }, { passive: false });
-
-          document.addEventListener('touchend', () => {
-            if (!touchStartElement) return;
-            touchStartElement.classList.remove('dragging');
-            touchStartElement = null;
+          exerciseListContainer.addEventListener('touchend', () => {
+            if (!touchStart) return;
+            touchStart.classList.remove('dragging');
+            touchStart = null;
             saveListOrderFromDOM();
           });
-        } catch (err) {
-          console.warn('D&D Error:', err);
-        }
+        } catch (err) {}
       }
 
       function getDragAfterElement(container, y) {
-        const draggableElements = [...container.querySelectorAll('.exercise-item:not(.dragging)')];
-        return draggableElements.reduce((closest, child) => {
-          const box = child.getBoundingClientRect();
-          const offset = y - box.top - box.height / 2;
-          if (offset < 0 && offset > closest.offset) {
-            return { offset: offset, element: child };
-          } else {
-            return closest;
-          }
-        }, { offset: Number.NEGATIVE_INFINITY }).element;
+        return [...container.querySelectorAll('.exercise-item:not(.dragging)')]
+          .reduce((closest, child) => {
+            const offset = y - child.getBoundingClientRect().top - child.getBoundingClientRect().height / 2;
+            return offset < 0 && offset > closest.offset ? { offset, element: child } : closest;
+          }, { offset: Number.NEGATIVE_INFINITY }).element;
       }
 
       function saveListOrderFromDOM() {
         const items = [...exerciseListContainer.querySelectorAll('.exercise-item')];
-        exercises = items.map(item => exercises.find(ex => ex.id === item.dataset.id)).filter(Boolean);
-        saveToLocalStorage();
+        const reordered = items.map(el => getExercises().find(e => e.id === el.dataset.id)).filter(Boolean);
+        setExercises(reordered);
         updateSummary();
       }
 
+      /* ===================================================
+         GESAMTZEIT
+      =================================================== */
       function calculateTotalDuration() {
-        if (exercises.length === 0) return 0;
-        let exerciseSeconds = 0;
-        exercises.forEach(ex => exerciseSeconds += (ex.minutes * 60) + ex.seconds);
-        const totalExerciseSteps = exercises.length * cycles;
-        const totalBreakSteps = Math.max(0, totalExerciseSteps - 1);
-        const breakSeconds = (globalBreak.minutes * 60) + globalBreak.seconds;
-        return (exerciseSeconds * cycles) + (totalBreakSteps * breakSeconds);
+        const exArr = getExercises();
+        if (exArr.length === 0) return 0;
+        let exSecs = exArr.reduce((s, e) => s + e.minutes * 60 + e.seconds, 0);
+        const totalSteps = exArr.length * cycles;
+        const breakSecs  = globalBreak.minutes * 60 + globalBreak.seconds;
+        return exSecs * cycles + Math.max(0, totalSteps - 1) * breakSecs;
       }
 
       function updateSummary() {
-        const totalSeconds = calculateTotalDuration();
-        if (totalDurationSummary) totalDurationSummary.innerText = formatSeconds(totalSeconds);
-        if (cyclesValueDisplay) cyclesValueDisplay.innerText = cycles;
-        if (breakValueDisplay) breakValueDisplay.innerText = formatTime(globalBreak.minutes, globalBreak.seconds);
-      }
-
-      /* WHEEL PICKER CONSTRUCTOR */
-      function createWheelColumn(id, label, min, max, initialValue, step = 1) {
-        const column = document.createElement('div');
-        column.className = 'wheel-column';
-        column.id = id;
-        
-        const scrollTrack = document.createElement('div');
-        scrollTrack.className = 'wheel-scroll-track';
-        
-        for (let i = min; i <= max; i += step) {
-          const item = document.createElement('div');
-          item.className = 'wheel-item';
-          item.dataset.value = i;
-          item.innerText = String(i).padStart(2, '0');
-          scrollTrack.appendChild(item);
+        if (totalDurationSummary && currentMode === 'interval') {
+          totalDurationSummary.innerText = formatSeconds(calculateTotalDuration());
         }
-        
-        column.appendChild(scrollTrack);
-        column.addEventListener('scroll', () => updateSelectedClass(column));
-        return column;
+        if (cyclesValueDisplay) cyclesValueDisplay.innerText = cycles;
+        if (breakValueDisplay)  breakValueDisplay.innerText  = formatTime(globalBreak.minutes, globalBreak.seconds);
       }
 
-      function updateSelectedClass(column) {
-        const items = column.querySelectorAll('.wheel-item');
-        const columnRect = column.getBoundingClientRect();
-        const centerY = columnRect.top + columnRect.height / 2;
-        
-        let closestItem = null;
-        let minDistance = Infinity;
-        
-        items.forEach(item => {
-          const rect = item.getBoundingClientRect();
-          const itemCenterY = rect.top + rect.height / 2;
-          const distance = Math.abs(centerY - itemCenterY);
-          if (distance < minDistance) {
-            minDistance = distance;
-            closestItem = item;
-          }
-        });
-        
-        items.forEach(item => {
-          if (item === closestItem) item.classList.add('selected');
-          else item.classList.remove('selected');
-        });
+      /* ===================================================
+         WHEEL PICKER
+      =================================================== */
+      function createWheelColumn(id, label, min, max, initVal) {
+        const col = document.createElement('div');
+        col.className = 'wheel-column';
+        col.id = id;
+        const track = document.createElement('div');
+        track.className = 'wheel-scroll-track';
+        for (let i = min; i <= max; i++) {
+          const it = document.createElement('div');
+          it.className = 'wheel-item';
+          it.dataset.value = i;
+          it.innerText = String(i).padStart(2, '0');
+          track.appendChild(it);
+        }
+        col.appendChild(track);
+        col.addEventListener('scroll', () => updateSelectedClass(col));
+        return col;
       }
 
-      function selectWheelValue(column, value) {
-        const items = column.querySelectorAll('.wheel-item');
-        let selectedIndex = 0;
-        items.forEach((item, idx) => {
-          if (parseInt(item.dataset.value) === value) selectedIndex = idx;
+      function updateSelectedClass(col) {
+        const items = col.querySelectorAll('.wheel-item');
+        const rect  = col.getBoundingClientRect();
+        const centerY = rect.top + rect.height / 2;
+        let closest = null, minDist = Infinity;
+        items.forEach(it => {
+          const r = it.getBoundingClientRect();
+          const d = Math.abs(centerY - (r.top + r.height / 2));
+          if (d < minDist) { minDist = d; closest = it; }
         });
-        
-        setTimeout(() => {
-          column.scrollTop = selectedIndex * 40;
-          updateSelectedClass(column);
-        }, 40);
+        items.forEach(it => it.classList.toggle('selected', it === closest));
       }
 
-      function getSelectedWheelValue(columnId) {
-        const column = document.getElementById(columnId);
-        if (!column) return 0;
-        
-        const items = column.querySelectorAll('.wheel-item');
-        const columnRect = column.getBoundingClientRect();
-        const centerY = columnRect.top + columnRect.height / 2;
-        
-        let closestItem = null;
-        let minDistance = Infinity;
-        
-        items.forEach(item => {
-          const rect = item.getBoundingClientRect();
-          const itemCenterY = rect.top + rect.height / 2;
-          const distance = Math.abs(centerY - itemCenterY);
-          if (distance < minDistance) {
-            minDistance = distance;
-            closestItem = item;
-          }
+      function selectWheelValue(col, value) {
+        const items = col.querySelectorAll('.wheel-item');
+        let idx = 0;
+        items.forEach((it, i) => { if (parseInt(it.dataset.value) === value) idx = i; });
+        setTimeout(() => { col.scrollTop = idx * 40; updateSelectedClass(col); }, 40);
+      }
+
+      function getSelectedWheelValue(id) {
+        const col = document.getElementById(id);
+        if (!col) return 0;
+        const rect = col.getBoundingClientRect();
+        const centerY = rect.top + rect.height / 2;
+        let closest = null, minDist = Infinity;
+        col.querySelectorAll('.wheel-item').forEach(it => {
+          const r = it.getBoundingClientRect();
+          const d = Math.abs(centerY - (r.top + r.height / 2));
+          if (d < minDist) { minDist = d; closest = it; }
         });
-        return closestItem ? parseInt(closestItem.dataset.value) : 0;
+        return closest ? parseInt(closest.dataset.value) : 0;
+      }
+
+      function openPickerWith(titleText, colsBuilder) {
+        pickerModalTitle.innerText = titleText;
+        wheelPickerContent.innerHTML = '';
+        const indicator = document.createElement('div');
+        indicator.className = 'wheel-selection-indicator';
+        wheelPickerContent.appendChild(indicator);
+        colsBuilder();
+        const fade = document.createElement('div');
+        fade.className = 'wheel-fade-overlay';
+        wheelPickerContent.appendChild(fade);
+        pickerModal.classList.add('active');
       }
 
       function openCyclesPicker() {
-        activePicker.type = 'cycles';
-        pickerModalTitle.innerText = 'Runden wählen';
-        wheelPickerContent.innerHTML = '<div class="wheel-selection-indicator"></div>';
-        const cyclesCol = createWheelColumn('cycles-column', 'Runden', 1, 99, cycles);
-        wheelPickerContent.appendChild(cyclesCol);
-        wheelPickerContent.appendChild(document.createElement('div')).className = 'wheel-fade-overlay';
-        pickerModal.classList.add('active');
-        selectWheelValue(cyclesCol, cycles);
+        activePicker = { type: 'cycles', targetId: null };
+        openPickerWith('Runden (Zyklen) wählen', () => {
+          const col = createWheelColumn('cycles-column', '', 1, 99, cycles);
+          wheelPickerContent.appendChild(col);
+          selectWheelValue(col, cycles);
+        });
       }
 
       function openBreakPicker() {
-        activePicker.type = 'break';
-        pickerModalTitle.innerText = 'Pausenzeit wählen';
-        wheelPickerContent.innerHTML = '<div class="wheel-selection-indicator"></div>';
-        const minCol = createWheelColumn('min-column', 'Min', 0, 59, globalBreak.minutes);
-        const divider = document.createElement('div');
-        divider.className = 'picker-divider'; divider.innerText = ':';
-        const secCol = createWheelColumn('sec-column', 'Sec', 0, 59, globalBreak.seconds);
-        
-        wheelPickerContent.appendChild(minCol);
-        wheelPickerContent.appendChild(divider);
-        wheelPickerContent.appendChild(secCol);
-        wheelPickerContent.appendChild(document.createElement('div')).className = 'wheel-fade-overlay';
-        pickerModal.classList.add('active');
-        selectWheelValue(minCol, globalBreak.minutes);
-        selectWheelValue(secCol, globalBreak.seconds);
+        activePicker = { type: 'break', targetId: null };
+        openPickerWith('Pausenzeit wählen', () => {
+          const minCol = createWheelColumn('min-column', '', 0, 59, globalBreak.minutes);
+          const div    = Object.assign(document.createElement('div'), { className: 'picker-divider', innerText: ':' });
+          const secCol = createWheelColumn('sec-column', '', 0, 59, globalBreak.seconds);
+          wheelPickerContent.appendChild(minCol);
+          wheelPickerContent.appendChild(div);
+          wheelPickerContent.appendChild(secCol);
+          selectWheelValue(minCol, globalBreak.minutes);
+          selectWheelValue(secCol, globalBreak.seconds);
+        });
       }
 
       function openExerciseTimePicker(id) {
-        const ex = exercises.find(item => item.id === id);
+        const ex = getExercises().find(e => e.id === id);
         if (!ex) return;
-        activePicker.type = 'exercise'; activePicker.targetId = id;
-        pickerModalTitle.innerText = `${ex.name} - Zeit`;
-        wheelPickerContent.innerHTML = '<div class="wheel-selection-indicator"></div>';
-        const minCol = createWheelColumn('min-column', 'Min', 0, 59, ex.minutes);
-        const divider = document.createElement('div');
-        divider.className = 'picker-divider'; divider.innerText = ':';
-        const secCol = createWheelColumn('sec-column', 'Sec', 0, 59, ex.seconds);
-        
-        wheelPickerContent.appendChild(minCol);
-        wheelPickerContent.appendChild(divider);
-        wheelPickerContent.appendChild(secCol);
-        wheelPickerContent.appendChild(document.createElement('div')).className = 'wheel-fade-overlay';
-        pickerModal.classList.add('active');
-        selectWheelValue(minCol, ex.minutes);
-        selectWheelValue(secCol, ex.seconds);
+        activePicker = { type: 'exercise', targetId: id };
+        openPickerWith(`${ex.name} – Zeit`, () => {
+          const minCol = createWheelColumn('min-column', '', 0, 59, ex.minutes);
+          const div    = Object.assign(document.createElement('div'), { className: 'picker-divider', innerText: ':' });
+          const secCol = createWheelColumn('sec-column', '', 0, 59, ex.seconds);
+          wheelPickerContent.appendChild(minCol);
+          wheelPickerContent.appendChild(div);
+          wheelPickerContent.appendChild(secCol);
+          selectWheelValue(minCol, ex.minutes);
+          selectWheelValue(secCol, ex.seconds);
+        });
       }
 
       function closePickerModal() {
@@ -1195,72 +1446,82 @@
         } else if (activePicker.type === 'break') {
           globalBreak.minutes = getSelectedWheelValue('min-column');
           globalBreak.seconds = getSelectedWheelValue('sec-column');
-          if (globalBreak.minutes === 0 && globalBreak.seconds === 0) globalBreak.seconds = 5;
+          if (!globalBreak.minutes && !globalBreak.seconds) globalBreak.seconds = 5;
         } else if (activePicker.type === 'exercise' && activePicker.targetId) {
-          const ex = exercises.find(item => item.id === activePicker.targetId);
+          const exArr = getExercises();
+          const ex = exArr.find(e => e.id === activePicker.targetId);
           if (ex) {
             ex.minutes = getSelectedWheelValue('min-column');
             ex.seconds = getSelectedWheelValue('sec-column');
-            if (ex.minutes === 0 && ex.seconds === 0) ex.seconds = 10;
+            if (!ex.minutes && !ex.seconds) ex.seconds = 10;
+            setExercises(exArr);
           }
         }
-        saveToLocalStorage();
         pickerModal.classList.remove('active');
-        activePicker.type = null; activePicker.targetId = null;
+        activePicker = { type: null, targetId: null };
         renderExerciseList();
         updateSummary();
       }
 
-      /* SAFE MEDIA CHANNELS ENGINE FOR IOS */
-      function playBeep() {
-        if (!nativeAudioElement) return;
-        nativeAudioElement.pause();
-        nativeAudioElement.currentTime = 0;
-        nativeAudioElement.volume = 1.0;
-        const playPromise = nativeAudioElement.play();
-        if (playPromise !== undefined) {
-          playPromise.catch(error => console.warn("Media Engine blocked:", error));
-        }
+      /* ===================================================
+         AUDIO
+      =================================================== */
+      function playBeep(freq, dur) {
+        try {
+          if (!timer.audioContext)
+            timer.audioContext = new (window.AudioContext || window.webkitAudioContext)();
+          const ctx = timer.audioContext;
+          if (ctx.state === 'suspended') ctx.resume();
+          const osc  = ctx.createOscillator();
+          const gain = ctx.createGain();
+          osc.connect(gain); gain.connect(ctx.destination);
+          osc.type = 'sine';
+          osc.frequency.setValueAtTime(freq, ctx.currentTime);
+          gain.gain.setValueAtTime(0.3, ctx.currentTime);
+          gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + dur);
+          osc.start(ctx.currentTime); osc.stop(ctx.currentTime + dur);
+        } catch (e) {}
       }
 
-      function unlockAudio() {
-        if (!nativeAudioElement) return;
-        nativeAudioElement.play().then(() => {
-          nativeAudioElement.pause();
-          nativeAudioElement.currentTime = 0;
-        }).catch(() => {});
+      /* ===================================================
+         SCREEN FLASH
+      =================================================== */
+      function triggerScreenFlash(el, intensity, type) {
+        if (!el) return;
+        el.classList.remove('flash-short-exercise','flash-short-break','flash-long-exercise','flash-long-break','flash-training');
+        void el.offsetWidth;
+        el.classList.add(`flash-${intensity}-${type}`);
       }
 
-      /* TIMER ENGINE CORE */
+      /* ===================================================
+         INTERVALL-TIMER ENGINE
+      =================================================== */
       function startWorkout() {
-        if (exercises.length === 0) return;
-        unlockAudio();
-        
+        if (currentMode === 'training') { startTraining(); return; }
+        const exArr = getExercises();
+        if (!exArr.length) return;
+
+        try { if (!timer.audioContext) timer.audioContext = new (window.AudioContext || window.webkitAudioContext)(); } catch(e) {}
+
         timer.playlist = [];
-        const breakSeconds = (globalBreak.minutes * 60) + globalBreak.seconds;
-        
+        const breakSecs = globalBreak.minutes * 60 + globalBreak.seconds;
         for (let c = 1; c <= cycles; c++) {
-          exercises.forEach((ex, idx) => {
-            timer.playlist.push({
-              type: 'exercise', name: ex.name, duration: (ex.minutes * 60) + ex.seconds, cycle: c
-            });
-            if (!(c === cycles && idx === exercises.length - 1)) {
-              timer.playlist.push({
-                type: 'break', name: 'Pause', duration: breakSeconds, cycle: c
-              });
+          exArr.forEach((ex, idx) => {
+            timer.playlist.push({ type: 'exercise', name: ex.name, duration: ex.minutes * 60 + ex.seconds, cycle: c });
+            if (!(c === cycles && idx === exArr.length - 1)) {
+              timer.playlist.push({ type: 'break', name: 'Pause', duration: breakSecs, cycle: c });
             }
           });
         }
-        
+
         timer.currentStepIndex = 0;
         timer.stepSecondsRemaining = timer.playlist[0].duration;
-        timer.overallSecondsRemaining = timer.playlist.reduce((sum, step) => sum + step.duration, 0);
-        
+        timer.overallSecondsRemaining = timer.playlist.reduce((s, st) => s + st.duration, 0);
         timer.state = 'running';
         if (timerPauseBtn) timerPauseBtn.innerText = 'Pause';
         if (timerOverlay) timerOverlay.classList.add('active');
         document.getElementById('app-setup-screen').style.display = 'none';
-        
+
         updateTimerUI();
         clearInterval(timer.intervalId);
         timer.intervalId = setInterval(tick, 1000);
@@ -1268,32 +1529,32 @@
 
       function tick() {
         if (timer.state !== 'running') return;
-        
         timer.stepSecondsRemaining--;
         timer.overallSecondsRemaining--;
-        
-        const currentStep = timer.playlist[timer.currentStepIndex];
+        const step = timer.playlist[timer.currentStepIndex];
+
         if (timer.stepSecondsRemaining >= 1 && timer.stepSecondsRemaining <= 3) {
-          playBeep();
-          triggerScreenFlash('short', currentStep.type);
+          playBeep(800, 0.1);
+          triggerScreenFlash(timerOverlay, 'short', step.type);
         }
-        
+
         if (timer.stepSecondsRemaining <= 0) {
-          triggerScreenFlash('long', currentStep.type);
-          playBeep();
+          triggerScreenFlash(timerOverlay, 'long', step.type);
+          playBeep(800, 1.2);
           timer.currentStepIndex++;
-          
+
           if (timer.currentStepIndex >= timer.playlist.length) {
             clearInterval(timer.intervalId);
             timer.state = 'setup';
-            playBeep();
-            setTimeout(playBeep, 200);
-            setTimeout(playBeep, 400);
-            
+            setTimeout(() => playBeep(600, 0.15), 100);
+            setTimeout(() => playBeep(800, 0.15), 250);
+            setTimeout(() => playBeep(1200, 0.8),  400);
             setTimeout(() => {
-              if (timerOverlay) timerOverlay.classList.remove('active');
+              timerOverlay.classList.remove('active');
               document.getElementById('app-setup-screen').style.display = 'flex';
-            }, 1000);
+            }, 1200);
+            if (runningTimerSeconds) runningTimerSeconds.innerText = '00:00';
+            if (runningOverallTime)  runningOverallTime.innerText  = '00:00';
             return;
           }
           timer.stepSecondsRemaining = timer.playlist[timer.currentStepIndex].duration;
@@ -1301,66 +1562,53 @@
         updateTimerUI();
       }
 
-      function triggerScreenFlash(intensity, type) {
-        if (!timerOverlay) return;
-        timerOverlay.classList.remove('flash-short-exercise', 'flash-short-break', 'flash-long-exercise', 'flash-long-break');
-        void timerOverlay.offsetWidth;
-        timerOverlay.classList.add(`flash-${intensity}-${type}`);
-      }
-
       function updateTimerUI() {
         if (!timerOverlay) return;
-        const currentStep = timer.playlist[timer.currentStepIndex];
-        
-        if (currentStep.type === 'exercise') {
-          timerOverlay.classList.remove('state-break'); timerOverlay.classList.add('state-exercise');
-        } else {
-          timerOverlay.classList.remove('state-exercise'); timerOverlay.classList.add('state-break');
-        }
-        
-        if (runningCycleLabel) runningCycleLabel.innerText = `Runde ${currentStep.cycle} / ${cycles}`;
-        if (runningItemLabel) runningItemLabel.innerText = currentStep.name;
+        const step = timer.playlist[timer.currentStepIndex];
+        timerOverlay.classList.toggle('state-exercise', step.type === 'exercise');
+        timerOverlay.classList.toggle('state-break',    step.type === 'break');
+        if (runningCycleLabel)  runningCycleLabel.innerText  = `Runde ${step.cycle} / ${cycles}`;
+        if (runningItemLabel)   runningItemLabel.innerText   = step.name;
         if (runningTimerSeconds) runningTimerSeconds.innerText = formatSeconds(timer.stepSecondsRemaining);
-        if (runningOverallTime) runningOverallTime.innerText = formatSeconds(timer.overallSecondsRemaining);
-        
-        let nextExercise = timer.playlist.slice(timer.currentStepIndex + 1).find(step => step.type === 'exercise');
-        if (nextExercise) {
+        if (runningOverallTime)  runningOverallTime.innerText  = formatSeconds(timer.overallSecondsRemaining);
+        let next = null;
+        for (let i = timer.currentStepIndex + 1; i < timer.playlist.length; i++) {
+          if (timer.playlist[i].type === 'exercise') { next = timer.playlist[i]; break; }
+        }
+        if (next) {
           if (nextUpCard) nextUpCard.style.display = 'block';
-          if (runningNextItem) runningNextItem.innerText = `${nextExercise.name} (${formatSeconds(nextExercise.duration)})`;
+          if (runningNextItem) runningNextItem.innerText = `${next.name} (${formatSeconds(next.duration)})`;
         } else {
           if (nextUpCard) nextUpCard.style.display = 'none';
         }
       }
 
       function togglePauseWorkout() {
-        if (timer.state === 'running') {
-          timer.state = 'paused'; if (timerPauseBtn) timerPauseBtn.innerText = 'Fortsetzen';
-        } else if (timer.state === 'paused') {
-          timer.state = 'running'; if (timerPauseBtn) timerPauseBtn.innerText = 'Pause';
-        }
+        if (timer.state === 'running')  { timer.state = 'paused'; if (timerPauseBtn) timerPauseBtn.innerText = 'Fortsetzen'; }
+        else if (timer.state === 'paused') { timer.state = 'running'; if (timerPauseBtn) timerPauseBtn.innerText = 'Pause'; }
       }
 
       function stopWorkout() {
         clearInterval(timer.intervalId);
         timer.state = 'setup';
         if (timerOverlay) {
-          timerOverlay.classList.remove('active', 'flash-short-exercise', 'flash-short-break', 'flash-long-exercise', 'flash-long-break');
+          timerOverlay.classList.remove('active','flash-short-exercise','flash-short-break','flash-long-exercise','flash-long-break');
         }
         document.getElementById('app-setup-screen').style.display = 'flex';
       }
 
       function skipCurrentStep() {
         if (timer.state === 'setup') return;
-        playBeep();
-        triggerScreenFlash('long', timer.playlist[timer.currentStepIndex].type);
+        playBeep(800, 0.2);
+        const step = timer.playlist[timer.currentStepIndex];
+        triggerScreenFlash(timerOverlay, 'long', step.type);
         timer.currentStepIndex++;
-        
         if (timer.currentStepIndex >= timer.playlist.length) {
-          clearInterval(timer.intervalId); timer.state = 'setup'; playBeep();
-          setTimeout(() => {
-            if (timerOverlay) timerOverlay.classList.remove('active');
-            document.getElementById('app-setup-screen').style.display = 'flex';
-          }, 500);
+          clearInterval(timer.intervalId); timer.state = 'setup';
+          setTimeout(() => playBeep(600,0.15),100);
+          setTimeout(() => playBeep(800,0.15),250);
+          setTimeout(() => playBeep(1200,0.8),400);
+          setTimeout(() => { timerOverlay.classList.remove('active'); document.getElementById('app-setup-screen').style.display='flex'; }, 1200);
           return;
         }
         timer.overallSecondsRemaining -= timer.stepSecondsRemaining;
@@ -1369,17 +1617,82 @@
         updateTimerUI();
       }
 
-      window.addNewExercise = addNewExercise;
-      window.renameExercise = renameExercise;
-      window.deleteExercise = deleteExercise;
-      window.openCyclesPicker = openCyclesPicker;
-      window.openBreakPicker = openBreakPicker;
+      /* ===================================================
+         TRAININGS-MODUS (manuell)
+      =================================================== */
+      function startTraining() {
+        const exArr = getExercises();
+        if (!exArr.length) return;
+        try { if (!timer.audioContext) timer.audioContext = new (window.AudioContext || window.webkitAudioContext)(); } catch(e) {}
+
+        training.playlist = [];
+        for (let c = 1; c <= cycles; c++) {
+          exArr.forEach(ex => training.playlist.push({ name: ex.name, cycle: c }));
+        }
+        training.currentIndex = 0;
+
+        if (trainingOverlayEl) trainingOverlayEl.classList.add('active');
+        document.getElementById('app-setup-screen').style.display = 'none';
+        updateTrainingUI();
+      }
+
+      function updateTrainingUI() {
+        if (!training.playlist.length) return;
+        const step = training.playlist[training.currentIndex];
+        if (trCycleLabel)    trCycleLabel.innerText    = `Runde ${step.cycle} / ${cycles}`;
+        if (trExerciseName)  trExerciseName.innerText  = step.name;
+        const next = training.playlist[training.currentIndex + 1];
+        if (next) {
+          if (trNextUp)   trNextUp.style.display = 'block';
+          if (trNextName) trNextName.innerText = next.name;
+        } else {
+          if (trNextUp) trNextUp.style.display = 'none';
+        }
+      }
+
+      function trainingNext() {
+        playBeep(800, 0.2);
+        triggerScreenFlash(trainingOverlayEl, 'training', 'training');
+        training.currentIndex++;
+        if (training.currentIndex >= training.playlist.length) {
+          // Fertig!
+          setTimeout(() => playBeep(600,0.15),100);
+          setTimeout(() => playBeep(800,0.15),250);
+          setTimeout(() => playBeep(1200,0.8),400);
+          setTimeout(() => {
+            if (trainingOverlayEl) trainingOverlayEl.classList.remove('active');
+            document.getElementById('app-setup-screen').style.display = 'flex';
+          }, 1200);
+          return;
+        }
+        updateTrainingUI();
+      }
+
+      function stopTraining() {
+        if (trainingOverlayEl) trainingOverlayEl.classList.remove('active','flash-training');
+        document.getElementById('app-setup-screen').style.display = 'flex';
+      }
+
+      /* ===================================================
+         GLOBALE FUNKTIONEN (für HTML onclick)
+      =================================================== */
+      window.openSlideOver          = openSlideOver;
+      window.closeSlideOver         = closeSlideOver;
+      window.setMode                = setMode;
+      window.addNewExercise         = addNewExercise;
+      window.renameExercise         = renameExercise;
+      window.deleteExercise         = deleteExercise;
+      window.openCyclesPicker       = openCyclesPicker;
+      window.openBreakPicker        = openBreakPicker;
       window.openExerciseTimePicker = openExerciseTimePicker;
-      window.closePickerModal = closePickerModal;
-      window.startWorkout = startWorkout;
-      window.togglePauseWorkout = togglePauseWorkout;
-      window.stopWorkout = stopWorkout;
-      window.skipCurrentStep = skipCurrentStep;
+      window.closePickerModal       = closePickerModal;
+      window.startWorkout           = startWorkout;
+      window.togglePauseWorkout     = togglePauseWorkout;
+      window.stopWorkout            = stopWorkout;
+      window.skipCurrentStep        = skipCurrentStep;
+      window.trainingNext           = trainingNext;
+      window.stopTraining           = stopTraining;
+
     })();
   </script>
 </body>
