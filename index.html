@@ -822,9 +822,55 @@
       color: var(--text-color);
     }
 
+    /* Wiederholungsanzeige (statisch, konfiguriert im Setup) */
+    .rep-display-wrap {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .rep-display-label {
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 2.5px;
+      color: var(--text-muted);
+    }
+
+    .rep-display-number {
+      font-size: 110px;
+      font-weight: 100;
+      font-variant-numeric: tabular-nums;
+      line-height: 1;
+      color: var(--neon-red);
+      text-shadow: var(--neon-red-glow);
+      text-align: center;
+    }
+
+    /* Rep-Trigger im Setup (wie Zeitauswahl) */
+    .exercise-rep-trigger {
+      background: rgba(255,255,255,0.05);
+      border: 1px solid var(--border-color);
+      border-radius: 8px;
+      padding: 6px 12px;
+      font-size: 15px;
+      font-weight: 600;
+      color: var(--neon-red);
+      text-shadow: 0 0 5px rgba(255,59,48,0.3);
+      cursor: pointer;
+      white-space: nowrap;
+      transition: var(--transition);
+    }
+    .exercise-rep-trigger:hover {
+      background: rgba(255,59,48,0.08);
+      border-color: var(--neon-red);
+    }
+
     .training-footer {
       display: flex;
-      justify-content: center;
+      flex-direction: column;
+      align-items: center;
+      gap: 14px;
     }
 
     .btn-training-stop {
@@ -991,12 +1037,17 @@
       <h2 class="training-exercise-name" id="tr-exercise-name">Kniebeugen</h2>
     </div>
     <div class="training-center">
-      <button class="btn-done" id="btn-done" onclick="trainingNext()">✓</button>
+      <!-- Wiederholungsanzeige (konfiguriert, nicht interaktiv) -->
+      <div class="rep-display-wrap">
+        <span class="rep-display-label">Wiederholungen</span>
+        <div class="rep-display-number" id="tr-rep-display">10</div>
+      </div>
       <div class="training-next-up" id="tr-next-up">
         Nächste Übung: <span class="training-next-up-value" id="tr-next-name"></span>
       </div>
     </div>
     <div class="training-footer">
+      <button class="btn-done" id="btn-done" onclick="trainingNext()">Weiter ›</button>
       <button class="btn-training-stop" onclick="stopTraining()">Beenden</button>
     </div>
   </div>
@@ -1021,7 +1072,7 @@
       /* ===================================================
          STATE
       =================================================== */
-      let currentMode = 'interval'; // 'interval' | 'training'
+      let currentMode = localStorage.getItem('last-mode') || 'interval'; // 'interval' | 'training'
 
       // Separate Listen je Modus (aus LocalStorage laden)
       let intervalExercises = loadFromStorage('interval-exercises', [
@@ -1031,8 +1082,8 @@
       ]);
 
       let trainingExercises = loadFromStorage('training-exercises', [
-        { id: 'tr-1', name: 'Kniebeugen',  minutes: 0, seconds: 0 },
-        { id: 'tr-2', name: 'Liegestütze', minutes: 0, seconds: 0 }
+        { id: 'tr-1', name: 'Kniebeugen',  reps: 10 },
+        { id: 'tr-2', name: 'Liegestütze', reps: 10 }
       ]);
 
       // Aktive Liste (Referenz je Modus)
@@ -1071,7 +1122,7 @@
 
       // Training-State (manuell)
       let training = {
-        playlist: [],    // [{name, cycle}]
+        playlist: [],    // [{name, reps, cycle}]
         currentIndex: 0
       };
 
@@ -1087,7 +1138,7 @@
           runningTimerSeconds, runningOverallTime, runningNextItem,
           nextUpCard, timerPauseBtn,
           trainingOverlayEl, trCycleLabel, trExerciseName,
-          trNextUp, trNextName,
+          trRepDisplay, trNextUp, trNextName,
           summaryCard, settingBreakCard, modeBadge;
 
       function init() {
@@ -1110,6 +1161,7 @@
         trainingOverlayEl     = document.getElementById('training-overlay');
         trCycleLabel          = document.getElementById('tr-cycle-label');
         trExerciseName        = document.getElementById('tr-exercise-name');
+        trRepDisplay          = document.getElementById('tr-rep-display');
         trNextUp              = document.getElementById('tr-next-up');
         trNextName            = document.getElementById('tr-next-name');
         summaryCard           = document.getElementById('summary-card');
@@ -1142,6 +1194,7 @@
 
       function setMode(mode) {
         currentMode = mode;
+        localStorage.setItem('last-mode', mode);
         applyMode(mode, true);
         closeSlideOver();
         renderExerciseList();
@@ -1203,10 +1256,10 @@
           item.draggable = true;
           item.dataset.id = ex.id;
 
-          // Im Trainings-Modus keine Zeitauswahl zeigen
+          // Im Intervall-Modus: Zeit; im Training-Modus: Wiederholungen
           const timeBtn = currentMode === 'interval'
             ? `<div class="exercise-time-trigger" onclick="window.openExerciseTimePicker('${ex.id}')">${formatTime(ex.minutes, ex.seconds)}</div>`
-            : '';
+            : `<div class="exercise-rep-trigger" onclick="window.openExerciseRepPicker('${ex.id}')">${ex.reps || 10} Wdh.</div>`;
 
           item.innerHTML = `
             <div class="drag-handle" title="Reihenfolge ändern">
@@ -1227,7 +1280,11 @@
       function addNewExercise() {
         const id = (currentMode === 'interval' ? 'ex-' : 'tr-') + Date.now();
         const exArr = getExercises();
-        exArr.push({ id, name: `Übung ${exArr.length + 1}`, minutes: 0, seconds: 30 });
+        if (currentMode === 'interval') {
+          exArr.push({ id, name: `Übung ${exArr.length + 1}`, minutes: 0, seconds: 30 });
+        } else {
+          exArr.push({ id, name: `Übung ${exArr.length + 1}`, reps: 10 });
+        }
         setExercises(exArr);
         renderExerciseList();
         updateSummary();
@@ -1454,6 +1511,18 @@
         });
       }
 
+      function openExerciseRepPicker(id) {
+        const ex = getExercises().find(e => e.id === id);
+        if (!ex) return;
+        activePicker = { type: 'reps', targetId: id };
+        openPickerWith(`${ex.name} – Wiederholungen`, () => {
+          // Einer-Spalte (1–9) und Zehner-Spalte (0–99) → einfacher: eine Spalte 1–999
+          const col = createWheelColumn('reps-column', '', 1, 200, ex.reps || 10);
+          wheelPickerContent.appendChild(col);
+          selectWheelValue(col, ex.reps || 10);
+        });
+      }
+
       function closePickerModal() {
         if (activePicker.type === 'cycles') {
           cycles = getSelectedWheelValue('cycles-column') || 1;
@@ -1468,6 +1537,13 @@
             ex.minutes = getSelectedWheelValue('min-column');
             ex.seconds = getSelectedWheelValue('sec-column');
             if (!ex.minutes && !ex.seconds) ex.seconds = 10;
+            setExercises(exArr);
+          }
+        } else if (activePicker.type === 'reps' && activePicker.targetId) {
+          const exArr = getExercises();
+          const ex = exArr.find(e => e.id === activePicker.targetId);
+          if (ex) {
+            ex.reps = getSelectedWheelValue('reps-column') || 1;
             setExercises(exArr);
           }
         }
@@ -1641,7 +1717,7 @@
 
         training.playlist = [];
         for (let c = 1; c <= cycles; c++) {
-          exArr.forEach(ex => training.playlist.push({ name: ex.name, cycle: c }));
+          exArr.forEach(ex => training.playlist.push({ name: ex.name, reps: ex.reps || 10, cycle: c }));
         }
         training.currentIndex = 0;
 
@@ -1653,12 +1729,13 @@
       function updateTrainingUI() {
         if (!training.playlist.length) return;
         const step = training.playlist[training.currentIndex];
-        if (trCycleLabel)    trCycleLabel.innerText    = `Runde ${step.cycle} / ${cycles}`;
-        if (trExerciseName)  trExerciseName.innerText  = step.name;
+        if (trCycleLabel)   trCycleLabel.innerText   = `Runde ${step.cycle} / ${cycles}`;
+        if (trExerciseName) trExerciseName.innerText  = step.name;
+        if (trRepDisplay)   trRepDisplay.innerText    = step.reps;
         const next = training.playlist[training.currentIndex + 1];
         if (next) {
           if (trNextUp)   trNextUp.style.display = 'block';
-          if (trNextName) trNextName.innerText = next.name;
+          if (trNextName) trNextName.innerText = next.name + (next.reps ? ` · ${next.reps} Wdh.` : '');
         } else {
           if (trNextUp) trNextUp.style.display = 'none';
         }
@@ -1690,22 +1767,23 @@
       /* ===================================================
          GLOBALE FUNKTIONEN (für HTML onclick)
       =================================================== */
-      window.openSlideOver          = openSlideOver;
-      window.closeSlideOver         = closeSlideOver;
-      window.setMode                = setMode;
-      window.addNewExercise         = addNewExercise;
-      window.renameExercise         = renameExercise;
-      window.deleteExercise         = deleteExercise;
-      window.openCyclesPicker       = openCyclesPicker;
-      window.openBreakPicker        = openBreakPicker;
-      window.openExerciseTimePicker = openExerciseTimePicker;
-      window.closePickerModal       = closePickerModal;
-      window.startWorkout           = startWorkout;
-      window.togglePauseWorkout     = togglePauseWorkout;
-      window.stopWorkout            = stopWorkout;
-      window.skipCurrentStep        = skipCurrentStep;
-      window.trainingNext           = trainingNext;
-      window.stopTraining           = stopTraining;
+      window.openSlideOver           = openSlideOver;
+      window.closeSlideOver          = closeSlideOver;
+      window.setMode                 = setMode;
+      window.addNewExercise          = addNewExercise;
+      window.renameExercise          = renameExercise;
+      window.deleteExercise          = deleteExercise;
+      window.openCyclesPicker        = openCyclesPicker;
+      window.openBreakPicker         = openBreakPicker;
+      window.openExerciseTimePicker  = openExerciseTimePicker;
+      window.openExerciseRepPicker   = openExerciseRepPicker;
+      window.closePickerModal        = closePickerModal;
+      window.startWorkout            = startWorkout;
+      window.togglePauseWorkout      = togglePauseWorkout;
+      window.stopWorkout             = stopWorkout;
+      window.skipCurrentStep         = skipCurrentStep;
+      window.trainingNext            = trainingNext;
+      window.stopTraining            = stopTraining;
 
     })();
   </script>
