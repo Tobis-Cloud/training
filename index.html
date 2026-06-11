@@ -42,15 +42,34 @@
       padding: 0;
       user-select: none;
       -webkit-user-select: none;
+      /* Kein Scrollen/Zoomen auf der Seite – scrollbare Container werden unten
+         explizit freigegeben */
       touch-action: manipulation;
+    }
+
+    /* Scrollbare Container: vertikales Scrollen erlauben */
+    .exercise-list,
+    .wheel-column {
+      touch-action: pan-y;
+      -webkit-overflow-scrolling: touch;
+    }
+
+    /* Eingabefelder: Text-Selektion erlauben */
+    .exercise-name-input {
+      user-select: text;
+      -webkit-user-select: text;
     }
 
     body {
       background-color: var(--bg-color);
       color: var(--text-color);
       font-family: var(--font-family);
-      overflow-x: hidden;
-      height: 100vh;
+      /* Seite komplett sperren – kein Scrollen, kein Zoom */
+      overflow: hidden;
+      position: fixed;
+      width: 100%;
+      height: 100%;
+      top: 0; left: 0;
       display: flex;
       flex-direction: column;
     }
@@ -259,10 +278,15 @@
     .exercise-list {
       flex: 1;
       overflow-y: auto;
+      overflow-x: hidden;
       display: flex;
       flex-direction: column;
       gap: 10px;
       padding-right: 2px;
+      /* Smooth scrolling auf iOS */
+      -webkit-overflow-scrolling: touch;
+      touch-action: pan-y;
+      overscroll-behavior: contain;
     }
 
     .empty-state {
@@ -525,10 +549,15 @@
       flex: 1;
       height: 100%;
       overflow-y: scroll;
+      overflow-x: hidden;
       scroll-snap-type: y mandatory;
       scrollbar-width: none;
       position: relative;
       padding: 80px 0;
+      /* Smooth scrolling auf iOS */
+      -webkit-overflow-scrolling: touch;
+      touch-action: pan-y;
+      overscroll-behavior: contain;
     }
     .wheel-column::-webkit-scrollbar { display: none; }
 
@@ -1055,14 +1084,28 @@
   <!-- ===== SCRIPT ===== -->
   <script>
     // Pinch-Zoom & Doppeltipp-Zoom vollständig deaktivieren
+    // ABER: Scrollen in .exercise-list und .wheel-column explizit erlauben
     document.addEventListener('gesturestart',  function(e) { e.preventDefault(); }, { passive: false });
     document.addEventListener('gesturechange', function(e) { e.preventDefault(); }, { passive: false });
     document.addEventListener('gestureend',    function(e) { e.preventDefault(); }, { passive: false });
+
     document.addEventListener('touchmove', function(e) {
-      if (e.touches.length > 1) e.preventDefault();
+      // Mehrfinger-Geste (Pinch-Zoom) immer blockieren
+      if (e.touches.length > 1) {
+        e.preventDefault();
+        return;
+      }
+      // Scrollen innerhalb scrollbarer Container durchlassen
+      const scrollable = e.target.closest('.exercise-list, .wheel-column');
+      if (!scrollable) {
+        e.preventDefault();
+      }
     }, { passive: false });
+
     let lastTap = 0;
     document.addEventListener('touchend', function(e) {
+      // Doppel-Tipp-Zoom blockieren, ABER nicht innerhalb von Eingabefeldern
+      if (e.target.tagName === 'INPUT') return;
       const now = Date.now();
       if (now - lastTap < 300) e.preventDefault();
       lastTap = now;
